@@ -3,177 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-PPM Portal Terpadu</title>
-    <!-- Load Core Libraries -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <title>E-PPM Terpadu</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .glass-nav { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(16px); border-top: 1px solid rgba(255, 255, 255, 0.1); }
-        .diagonal-bg { background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%); }
-        .loader { border-top-color: #4f46e5; animation: spinner 1.5s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden">
-    <div id="root">
-        <!-- Loading fallback sebelum React jalan -->
-        <div class="min-h-screen flex items-center justify-center bg-slate-900">
-            <div class="text-center">
-                <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-700 h-12 w-12 mb-4 mx-auto"></div>
-                <p class="text-slate-400 font-bold animate-pulse">Memulakan Sistem E-PPM...</p>
-            </div>
-        </div>
-    </div>
+    <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
+        const { useState, useEffect, useCallback, useRef } = React;
 
-        /**
-         * ARAHAN PENTING:
-         * Masukkan URL Web App Google Apps Script anda di bawah.
-         * Ia mestilah bermula dengan https://script.google.com/macros/s/.../exec
-         */
-        const API_URL = "https://script.google.com/macros/s/AKfycbzBbOs7TnXp5tw-obSwyLukPBMVj8oHv9usK-T5tjN8ef5SQrh-F1Wx9vwKA396OF5MXQ/exec"; 
+        // --- KONFIGURASI ---
+        const API_URL = "https://script.google.com/macros/s/AKfycbzBbOs7TnXp5tw-obSwyLukPBMVj8oHv9usK-T5tjN8ef5SQrh-F1Wx9vwKA396OF5MXQ/exec"; // TAMPAL WEB APP URL GAS ANDA DI SINI
 
         function App() {
             const [user, setUser] = useState(null);
             const [view, setView] = useState('login'); 
             const [loading, setLoading] = useState(false);
-            const [config, setConfig] = useState({ users: [], classes: [], hostels: [] });
+            const [config, setConfig] = useState({ users: [], classes: [], hostels: [], submissions: [] });
             const [activeWeek, setActiveWeek] = useState(1);
             const [weekStatus, setWeekStatus] = useState('DRAFT');
 
-            // --- Diagnostik API URL ---
-            if (!API_URL || API_URL === "") {
-                return (
-                    <div className="min-h-screen flex items-center justify-center bg-rose-950 p-6 text-center">
-                        <div className="bg-white p-8 rounded-[3rem] shadow-2xl max-w-sm">
-                            <div className="text-rose-600 mb-4 font-black text-4xl">!</div>
-                            <h2 className="text-xl font-black mb-2">API URL Belum Diisi</h2>
-                            <p className="text-slate-500 text-sm mb-6">Sila masukkan URL Google Apps Script anda di dalam fail <code>index.html</code> pada baris ke-39.</p>
-                            <div className="p-4 bg-slate-100 rounded-2xl text-[10px] font-mono break-all text-left">
-                                const API_URL = "https://script.google.com/.../exec";
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            // --- Fungsi Fetch Data ---
+            // --- FETCH DATA ---
             const refreshData = useCallback(async () => {
+                if (!API_URL) return;
                 try {
                     const resp = await fetch(`${API_URL}?action=getInitialData`);
                     const res = await resp.json();
-                    if (res) setConfig(res);
-                } catch(e) { 
-                    console.error("Fetch Error:", e);
-                }
+                    setConfig(res);
+                } catch(e) { console.error("Sync Error"); }
             }, []);
 
             const fetchStatus = useCallback(async () => {
                 if (!user) return;
-                try {
-                    const resp = await fetch(`${API_URL}?action=getWeeklyStatus&email=${user.email}&year=2026&week=${activeWeek}`);
-                    const res = await resp.json();
-                    setWeekStatus(res.status || 'DRAFT');
-                } catch(e) { setWeekStatus('DRAFT'); }
+                const resp = await fetch(`${API_URL}?action=getWeeklyStatus&email=${user.email}&year=2026&week=${activeWeek}`);
+                const res = await resp.json();
+                setWeekStatus(res.status);
             }, [user, activeWeek]);
 
             useEffect(() => { refreshData(); }, [refreshData]);
             useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-            // --- Logik Logout ---
-            const handleLogout = () => {
-                setUser(null);
-                setView('login');
+            // --- LOGIN ---
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                const p = Object.fromEntries(new FormData(e.target));
+                try {
+                    const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', payload: p }) });
+                    const res = await r.json();
+                    if (res.status === 'success') { setUser(res.user); setView('dashboard'); }
+                    else alert(res.message);
+                } finally { setLoading(false); }
             };
 
-            if (view === 'login') return <LoginView setUser={setUser} setView={setView} loading={loading} setLoading={setLoading} />;
+            // --- NAVIGATION ---
+            if (view === 'login') return <LoginView onLogin={handleLogin} loading={loading} />;
 
             return (
-                <div className="min-h-screen pb-32">
-                    <header className="diagonal-bg text-white p-6 rounded-b-[3.5rem] shadow-2xl relative overflow-hidden">
+                <div className="min-h-screen pb-28">
+                    <header className="bg-indigo-700 text-white p-6 rounded-b-[2.5rem] shadow-2xl relative overflow-hidden">
                         <div className="flex justify-between items-center relative z-10">
                             <div className="flex items-center gap-4">
                                 <div className="w-14 h-14 bg-white/20 rounded-2xl border border-white/30 flex items-center justify-center overflow-hidden">
-                                    {user?.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover" /> : <span className="text-2xl font-black">{user?.name?.charAt(0)}</span>}
+                                    {user.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover"/> : <span className="text-xl font-black">{user.name.charAt(0)}</span>}
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-black leading-none">{user?.nickname || user?.name}</h2>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-indigo-200 mt-2">{user?.category} • {user?.role}</p>
+                                    <h2 className="text-xl font-black leading-none">{user.nickname || user.name}</h2>
+                                    <p className="text-[9px] uppercase font-bold tracking-widest text-indigo-200 mt-2">{user.category} • {user.role}</p>
                                 </div>
                             </div>
-                            <button onClick={handleLogout} className="p-3 bg-white/10 rounded-2xl hover:bg-white/20 transition-all">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            <button onClick={() => {setUser(null); setView('login');}} className="p-3 bg-white/10 rounded-2xl">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                             </button>
                         </div>
                     </header>
-                    
+
                     <main className="p-4 max-w-4xl mx-auto space-y-6">
-                        {view === 'dashboard' && <PpmDashboard user={user} week={activeWeek} setWeek={setActiveWeek} status={weekStatus} setStatus={setWeekStatus} setView={setView} loading={loading} setLoading={setLoading} />}
-                        {view === 'report' && <div className="p-10 text-center bg-white rounded-3xl font-bold">Modul Laporan Sedia</div>}
-                        {view === 'hostel-schedule' && <div className="p-10 text-center bg-white rounded-3xl font-bold">Modul Jadual Asrama Sedia</div>}
-                        {view === 'admin' && <AdminPanel config={config} refresh={refreshData} API_URL={API_URL} />}
-                        {view === 'profile' && <div className="p-10 text-center bg-white rounded-3xl font-bold">Modul Profil Sedia</div>}
+                        {view === 'dashboard' && <PpmDashboard user={user} setView={setView} week={activeWeek} setWeek={setActiveWeek} status={weekStatus} setStatus={setWeekStatus} />}
+                        {view === 'report' && <ReportView user={user} week={activeWeek} isLocked={weekStatus !== 'DRAFT'} config={config} />}
+                        {view === 'admin' && <AdminView config={config} refresh={refreshData} />}
+                        {view === 'profile' && <ProfileView user={user} API_URL={API_URL} setUser={setUser} />}
                     </main>
 
-                    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 glass-nav px-8 py-4 rounded-[2.5rem] flex items-center gap-10 shadow-2xl z-50 transition-all border border-white/10">
-                        <button onClick={() => setView('dashboard')} className={view==='dashboard'?'text-indigo-400 scale-125':'text-slate-500'}>
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 glass border border-white/20 px-8 py-4 rounded-[2.5rem] flex items-center gap-10 shadow-2xl z-50">
+                        <button onClick={() => setView('dashboard')} className={view==='dashboard'?'text-indigo-600 scale-125':'text-slate-400'}>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                         </button>
-                        <button onClick={() => setView('report')} className={view==='report'?'text-indigo-400 scale-125':'text-slate-500'}>
-                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <button onClick={() => setView('report')} className={view==='report'?'text-indigo-600 scale-125':'text-slate-400'}>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </button>
-                        <button onClick={() => setView('hostel-schedule')} className={view==='hostel-schedule'?'text-indigo-400 scale-125':'text-slate-500'}>
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                        </button>
-                        {user?.role === 'Admin' && (
-                            <button onClick={() => setView('admin')} className={view==='admin'?'text-indigo-400 scale-125':'text-slate-500'}>
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        {user.role === 'Admin' && (
+                            <button onClick={() => setView('admin')} className={view==='admin'?'text-indigo-600 scale-125':'text-slate-400'}>
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                             </button>
                         )}
-                        <button onClick={() => setView('profile')} className={view==='profile'?'text-indigo-400 scale-125':'text-slate-500'}>
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        <button onClick={() => setView('profile')} className={view==='profile'?'text-indigo-600 scale-125':'text-slate-400'}>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         </button>
                     </nav>
                 </div>
             );
         }
 
-        // --- View Login ---
-        function LoginView({ setUser, setView, loading, setLoading }) {
-            const handleLogin = async (e) => {
-                e.preventDefault();
-                setLoading(true);
-                const payload = Object.fromEntries(new FormData(e.target));
-                try {
-                    const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', payload }) });
-                    const res = await r.json();
-                    if (res.status === 'success') { setUser(res.user); setView('dashboard'); }
-                    else alert(res.message);
-                } catch(e) { alert("Ralat log masuk. Sila periksa Web App GAS anda."); }
-                finally { setLoading(false); }
-            };
-
+        function LoginView({ onLogin, loading }) {
             return (
-                <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden font-sans">
-                    <div className="bg-white p-12 rounded-[4rem] w-full max-w-md shadow-2xl relative z-10 animate-in zoom-in duration-500">
-                        <div className="text-center mb-10">
-                            <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] mx-auto flex items-center justify-center shadow-xl shadow-indigo-200 mb-6">
-                                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            </div>
-                            <h1 className="text-4xl font-black tracking-tighter uppercase leading-none text-slate-900">E-PPM<br/><span className="text-indigo-600 text-2xl tracking-normal font-bold">Portal Rasmi</span></h1>
-                        </div>
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <input name="email" type="email" placeholder="E-mel" className="w-full p-5 bg-slate-50 rounded-3xl outline-none border-2 border-transparent focus:border-indigo-600 font-bold transition-all" required />
-                            <input name="password" type="password" placeholder="Katalaluan" className="w-full p-5 bg-slate-50 rounded-3xl outline-none border-2 border-transparent focus:border-indigo-600 font-bold transition-all" required />
+                <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+                    <div className="bg-white p-12 rounded-[3.5rem] w-full max-w-md shadow-2xl animate-in zoom-in duration-500">
+                        <h1 className="text-4xl font-black text-center mb-10 tracking-tighter uppercase leading-none">E-PPM<br/><span className="text-indigo-600 text-2xl tracking-normal font-bold">Portal Rasmi</span></h1>
+                        <form onSubmit={onLogin} className="space-y-4">
+                            <input name="email" type="email" placeholder="E-mel" className="w-full p-5 bg-slate-50 border-2 border-transparent focus:border-indigo-600 rounded-3xl outline-none font-bold" required />
+                            <input name="password" type="password" placeholder="Katalaluan" className="w-full p-5 bg-slate-50 border-2 border-transparent focus:border-indigo-600 rounded-3xl outline-none font-bold" required />
                             <button disabled={loading} className="w-full bg-indigo-600 text-white p-6 rounded-3xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
-                                {loading ? "MENYEMAK..." : "MASUK PORTAL"}
+                                {loading ? "MENYEMAK..." : "MASUK SEKARANG"}
                             </button>
                         </form>
                     </div>
@@ -181,39 +131,32 @@
             );
         }
 
-        // --- Dashboard PPM ---
-        function PpmDashboard({ user, week, setWeek, status, setStatus, setView, loading, setLoading }) {
+        function PpmDashboard({ user, week, setWeek, status, setStatus, setView }) {
             const toggleSubmit = async (action) => {
-                setLoading(true);
-                try {
-                    const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'toggleSubmit', payload: { email: user.email, year: 2026, week, action } }) });
-                    const res = await r.json();
-                    if (res.status === 'success') {
-                        setStatus(res.newStatus);
-                        alert(action==='SUBMIT'?"Laporan dihantar!":"Laporan ditarik balik.");
-                    }
-                } finally { setLoading(false); }
+                const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'toggleSubmit', payload: { email: user.email, year: 2026, week, action } }) });
+                const res = await r.json();
+                if (res.status === 'success') setStatus(res.newStatus);
             };
 
             return (
-                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-                    <section className="bg-white p-8 rounded-[3.5rem] shadow-sm border border-slate-100">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-8">Grid Prestasi 56 Minggu</h3>
+                <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Grid Prestasi 56 Minggu</h3>
                         <div className="grid grid-cols-7 gap-3">
                             {[...Array(56)].map((_, i) => (
                                 <button key={i} onClick={() => setWeek(i+1)} className={`aspect-square rounded-2xl text-[10px] font-black border-2 transition-all ${week===i+1?'bg-indigo-600 text-white border-indigo-600 shadow-xl scale-110':'bg-slate-50 border-slate-50 text-slate-400'}`}>{i+1}</button>
                             ))}
                         </div>
-                    </section>
+                    </div>
 
-                    <div className={`p-10 rounded-[4rem] shadow-2xl transition-all ${status==='DRAFT'?'bg-slate-900 text-white':'bg-emerald-600 text-white'}`}>
-                        <p className="text-[10px] font-black uppercase opacity-60 tracking-[0.2em] mb-1">Status Laporan Minggu {week}</p>
-                        <h2 className="text-4xl font-black tracking-tighter uppercase mb-10">{status}</h2>
-                        <div className="flex gap-4">
-                            <button onClick={() => setView('report')} className="flex-1 bg-white text-slate-900 p-5 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl">ISI HARIAN</button>
+                    <div className={`p-8 rounded-[3.5rem] shadow-2xl transition-all ${status==='DRAFT'?'bg-slate-900 text-white':'bg-emerald-600 text-white'}`}>
+                        <p className="text-[10px] font-black uppercase opacity-60 tracking-[0.2em] mb-1">Status Minggu {week}</p>
+                        <h2 className="text-4xl font-black tracking-tighter uppercase mb-8">{status}</h2>
+                        <div className="flex gap-3">
+                            <button onClick={() => setView('report')} className="flex-1 bg-white text-slate-900 p-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg">ISI HARIAN</button>
                             {status === 'DRAFT' ? 
-                                <button disabled={loading} onClick={() => toggleSubmit('SUBMIT')} className="flex-1 bg-indigo-500 p-5 rounded-[2rem] font-black text-xs uppercase tracking-widest border border-white/20">HANTAR</button>
-                                : <button disabled={loading} onClick={() => toggleSubmit('UNSUBMIT')} className="flex-1 bg-rose-500 p-5 rounded-[2rem] font-black text-xs uppercase tracking-widest">TARIK BALIK</button>
+                                <button onClick={() => toggleSubmit('SUBMIT')} className="flex-1 bg-indigo-500 p-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-white/20">HANTAR & KUNCI</button>
+                                : <button onClick={() => toggleSubmit('UNSUBMIT')} className="flex-1 bg-rose-500 p-4 rounded-2xl font-black text-xs uppercase tracking-widest">TARIK BALIK</button>
                             }
                         </div>
                     </div>
@@ -221,20 +164,101 @@
             );
         }
 
-        // --- Panel Admin ---
-        function AdminPanel({ config, refresh, API_URL }) {
+        function ReportView({ user, week, isLocked, config }) {
+            const [tasks, setTasks] = useState([{ masa: '', tugasan: '', catatan: '' }]);
+            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+            const [loading, setLoading] = useState(false);
+
+            const handleSave = async () => {
+                if (isLocked) return;
+                setLoading(true);
+                const p = { email: user.email, year: 2026, week, date, day: 'AUTODAY', tasks, status: 'HADIR', students: 0, arrival: '07:30', departure: '16:30', shift: 'Pagi' };
+                try {
+                    const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveDaily', payload: p }) });
+                    const res = await r.json();
+                    if (res.status === 'success') alert("Tugasan Disimpan!");
+                    else alert(res.message);
+                } finally { setLoading(false); }
+            };
+
             return (
-                <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in duration-700">
+                    <div className={`p-10 text-white flex justify-between items-center ${isLocked?'bg-amber-500':'bg-indigo-700'}`}>
+                        <div><h2 className="text-2xl font-black tracking-tighter uppercase leading-none">Laporan Harian</h2><p className="text-[10px] font-bold opacity-60 uppercase mt-2 tracking-widest">Minggu {week}</p></div>
+                        {isLocked && <svg className="w-10 h-10 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>}
+                    </div>
+                    <div className="p-8 space-y-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-300 uppercase ml-2 tracking-widest">Tarikh Bertugas</label>
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-50 p-5 rounded-3xl font-black outline-none focus:border-indigo-600 transition-all shadow-inner" />
+                        </div>
+                        <div className="space-y-4">
+                            {tasks.map((t, i) => (
+                                <div key={i} className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100 space-y-4">
+                                    <div className="flex gap-3">
+                                        <input placeholder="Waktu" value={t.masa} disabled={isLocked} onChange={e => {const n=[...tasks]; n[i].masa=e.target.value; setTasks(n);}} className="w-28 p-3 bg-white rounded-xl text-xs font-black border border-slate-100" />
+                                        <input placeholder="Tugasan" value={t.tugasan} disabled={isLocked} onChange={e => {const n=[...tasks]; n[i].tugasan=e.target.value; setTasks(n);}} className="flex-1 p-3 bg-white rounded-xl text-xs font-black border border-slate-100" />
+                                    </div>
+                                    <textarea placeholder="Catatan..." value={t.catatan} disabled={isLocked} onChange={e => {const n=[...tasks]; n[i].catatan=e.target.value; setTasks(n);}} className="w-full p-3 bg-white rounded-xl text-xs font-bold border border-slate-100 h-20" />
+                                </div>
+                            ))}
+                            {!isLocked && <button onClick={() => setTasks([...tasks, {masa:'', tugasan:'', catatan:''}])} className="w-full border-2 border-dashed border-slate-200 p-4 rounded-3xl text-slate-300 font-black text-xs uppercase tracking-widest">+ Tambah Tugasan</button>}
+                        </div>
+                        <button onClick={handleSave} disabled={loading || isLocked} className="w-full bg-slate-900 text-white p-6 rounded-[2.5rem] font-black text-lg shadow-2xl disabled:opacity-50">
+                            {loading ? "MENYIMPAN..." : isLocked ? "MINGGU INI DIKUNCI" : "SIMPAN LAPORAN HARIAN"}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function ProfileView({ user, API_URL, setUser }) {
+            const handleUpload = (e) => {
+                const f = e.target.files[0];
+                const r = new FileReader();
+                r.onloadend = async () => {
+                    const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'uploadFile', payload: { filename: `PP_${user.email}.jpg`, base64: r.result, email: user.email, type: 'PROFILE' } }) });
+                    const res = await resp.json();
+                    if (res.status === 'success') setUser({...user, profilePic: res.url});
+                };
+                r.readAsDataURL(f);
+            };
+
+            return (
+                <div className="bg-white p-10 rounded-[4rem] shadow-xl text-center space-y-8 animate-in zoom-in duration-500">
+                    <div className="relative inline-block group">
+                        <div className="w-40 h-40 bg-indigo-600 rounded-[3rem] mx-auto overflow-hidden shadow-2xl border-4 border-white">
+                            {user.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover" /> : <div className="text-6xl font-black text-white flex items-center justify-center h-full">{user.name.charAt(0)}</div>}
+                        </div>
+                        <label className="absolute bottom-2 right-2 bg-white p-3 rounded-2xl shadow-2xl cursor-pointer hover:bg-slate-50 border border-slate-100">
+                            <input type="file" onChange={handleUpload} className="hidden" accept="image/*" />
+                            <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                        </label>
+                    </div>
+                    <div>
+                        <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{user.name}</h2>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mt-2 leading-none">{user.designation || 'Pembantu Pengurusan Murid'}</p>
+                    </div>
+                </div>
+            );
+        }
+
+        function AdminView({ config, refresh }) {
+            return (
+                <div className="space-y-6">
                     <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex justify-between items-center">
-                        <div><h2 className="text-2xl font-black text-slate-800 tracking-tighter uppercase leading-none">Urus Staf</h2><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{config.users.length} Kakitangan Berdaftar</p></div>
+                        <div><h2 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Urus Staf</h2><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{config.users.length} Kakitangan Aktif</p></div>
                         <button className="bg-indigo-600 text-white p-4 rounded-2xl font-black text-xs">TAMBAH</button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {config.users.map(u => (
                             <div key={u.email} className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center justify-between group hover:border-indigo-600 transition-all">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">{u.name.charAt(0)}</div>
-                                    <div><p className="font-black text-slate-800 leading-none text-sm">{u.name}</p><p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">{u.category} • {u.role}</p></div>
+                                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center font-black text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">{u.name.charAt(0)}</div>
+                                    <div><p className="font-black text-slate-800 leading-none text-sm">{u.name}</p><p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">{u.category} • {u.role}</p></div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-indigo-50 hover:text-indigo-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
                                 </div>
                             </div>
                         ))}
