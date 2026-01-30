@@ -1,213 +1,507 @@
-<!DOCTYPE html>
-<html lang="ms">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-PPM Portal 2026</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .glass-nav { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(16px); border-top: 1px solid rgba(255, 255, 255, 0.1); }
-        .diagonal-bg { background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%); }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-900 overflow-x-hidden selection:bg-indigo-100">
-    <div id="root">
-        <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">Memuatkan Sistem E-PPM...</div>
+import React, { useState, useEffect } from 'react';
+import { 
+  LayoutDashboard, 
+  Camera, 
+  FileText, 
+  ClipboardCheck, 
+  UserCircle, 
+  LogOut, 
+  Plus, 
+  Send, 
+  CheckCircle,
+  ChevronRight,
+  Eye,
+  Calendar,
+  MapPin,
+  Clock,
+  ArrowLeft,
+  Loader2
+} from 'lucide-react';
+
+// --- CONFIG ---
+const API_URL = "https://script.google.com/macros/s/AKfycbwQDoFSx5gDD07lbAM44u8A-2CTRHgXuvHArkPluWUsnbnh3q8i89v_yFNiwjRq_1Ce/exec"; // MASUKKAN WEB APP URL ANDA DI SINI
+
+export default function App() {
+  const [page, setPage] = useState('landing'); // landing, login, signup, forgot, app
+  const [subPage, setSubPage] = useState('dashboard');
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [settings, setSettings] = useState({ locations: [], gpks: [] });
+  const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ppm_user');
+    if (saved) {
+      const u = JSON.parse(saved);
+      setUser(u);
+      setPage('app');
+      fetchReports(u);
+    }
+    fetchInitialData();
+  }, []);
+
+  const notify = (msg, type = 'success') => {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const callAPI = async (action, payload) => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action, payload })
+      });
+      const res = await response.json();
+      setLoading(false);
+      return res;
+    } catch (err) {
+      setLoading(false);
+      notify("Ralat sambungan ke pelayan", "error");
+      return { success: false };
+    }
+  };
+
+  const fetchInitialData = async () => {
+    const res = await callAPI('getInitialData', {});
+    if (res.success) setSettings(res);
+  };
+
+  const fetchReports = async (currUser) => {
+    const res = await callAPI('getReports', { userId: currUser.uid, role: currUser.role });
+    if (res.success) setReports(res.reports);
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const data = new FormData(e.target);
+    const res = await callAPI('login', Object.fromEntries(data));
+    if (res.success) {
+      setUser(res.user);
+      localStorage.setItem('ppm_user', JSON.stringify(res.user));
+      setPage('app');
+      fetchReports(res.user);
+    } else {
+      notify(res.message, "error");
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    if (data.password.length !== 12) return notify("Password mesti tepat 12 aksara!", "error");
+    
+    // Determine Role
+    data.role = data.position === 'GPK' ? 'GPK' : 'User';
+    if (data.username === 'admin') data.role = 'Admin';
+
+    const res = await callAPI('signup', data);
+    if (res.success) {
+      notify(res.message);
+      setPage('login');
+    } else {
+      notify(res.message, "error");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('ppm_user');
+    setUser(null);
+    setPage('landing');
+  };
+
+  // --- UI COMPONENTS ---
+
+  const LandingPage = () => (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-blue-800 flex flex-col items-center justify-center text-white p-6">
+      <div className="text-center mb-12">
+        <h1 className="text-5xl font-extrabold mb-4 tracking-tight">SISTEM PPM</h1>
+        <p className="text-xl opacity-90">Pengurusan Laporan Pembantu Pengurusan Murid secara Digital</p>
+      </div>
+      <div className="flex gap-4">
+        <button onClick={() => setPage('login')} className="px-8 py-3 bg-white text-indigo-700 font-bold rounded-full shadow-lg hover:bg-opacity-90 transition">Login</button>
+        <button onClick={() => setPage('signup')} className="px-8 py-3 border-2 border-white font-bold rounded-full hover:bg-white hover:text-indigo-700 transition">Sign Up</button>
+      </div>
     </div>
+  );
 
-    <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+  const AuthLayout = ({ title, children, back }) => (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+        <div className="flex items-center mb-6">
+          <button onClick={() => setPage(back)} className="p-2 hover:bg-gray-100 rounded-full mr-2"><ArrowLeft size={20}/></button>
+          <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
 
-        // --- KONFIGURASI ---
-        const API_URL = "https://script.google.com/macros/s/AKfycbzBbOs7TnXp5tw-obSwyLukPBMVj8oHv9usK-T5tjN8ef5SQrh-F1Wx9vwKA396OF5MXQ/exec"; // TAMPAL WEB APP URL ANDA DI SINI
+  // --- APP PAGES ---
 
-        function App() {
-            const [user, setUser] = useState(null);
-            const [view, setView] = useState('login'); 
-            const [loading, setLoading] = useState(false);
-            const [config, setConfig] = useState({ users: [], classes: [], hostels: [], hostelSchedule: [] });
-            const [activeWeek, setActiveWeek] = useState(1);
-            const [weekStatus, setWeekStatus] = useState('DRAFT');
-
-            const refreshData = useCallback(async () => {
-                if (!API_URL) return;
-                try {
-                    const resp = await fetch(`${API_URL}?action=getInitialData`);
-                    const res = await resp.json();
-                    setConfig(res);
-                } catch(e) { console.error("Sync Error"); }
-            }, []);
-
-            useEffect(() => { refreshData(); }, [refreshData]);
-
-            const handleLogin = async (e) => {
-                e.preventDefault();
-                setLoading(true);
-                const p = Object.fromEntries(new FormData(e.target));
-                try {
-                    const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', payload: p }) });
-                    const res = await r.json();
-                    if (res.status === 'success') { setUser(res.user); setView('dashboard'); }
-                    else alert(res.message);
-                } finally { setLoading(false); }
-            };
-
-            if (view === 'login') return <LoginView onLogin={handleLogin} loading={loading} />;
-
-            return (
-                <div className="min-h-screen pb-32">
-                    <header className="diagonal-bg text-white p-6 rounded-b-[3.5rem] shadow-2xl relative overflow-hidden flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center overflow-hidden border border-white/30 shadow-inner">
-                                {user.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover"/> : <span className="text-xl font-black">{user.name.charAt(0)}</span>}
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-black leading-none">{user.nickname || user.name}</h2>
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-indigo-200 mt-2">{user.category} • {user.role}</p>
-                            </div>
-                        </div>
-                        <button onClick={() => {setUser(null); setView('login');}} className="p-3 bg-white/10 rounded-2xl">Log Keluar</button>
-                    </header>
-
-                    <main className="p-4 max-w-4xl mx-auto space-y-6">
-                        {view === 'dashboard' && <PpmDashboard user={user} week={activeWeek} setWeek={setActiveWeek} status={weekStatus} setStatus={setWeekStatus} setView={setView} />}
-                        {view === 'hostel-schedule' && <HostelGrid config={config} refresh={refreshData} user={user} />}
-                        {view === 'admin' && <AdminControl config={config} refresh={refreshData} />}
-                        {view === 'report' && <ReportForm user={user} week={activeWeek} isLocked={weekStatus !== 'DRAFT'} config={config} />}
-                        {view === 'profile' && <ProfileView user={user} setUser={setUser} API_URL={API_URL} />}
-                    </main>
-
-                    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 glass-nav px-8 py-4 rounded-[2.5rem] flex items-center gap-10 shadow-2xl z-50">
-                        <button onClick={() => setView('dashboard')} className={view==='dashboard'?'text-indigo-400 scale-125':'text-slate-500'}>Home</button>
-                        <button onClick={() => setView('report')} className={view==='report'?'text-indigo-400 scale-125':'text-slate-500'}>Laporan</button>
-                        <button onClick={() => setView('hostel-schedule')} className={view==='hostel-schedule'?'text-indigo-400 scale-125':'text-slate-500'}>Asrama</button>
-                        {user.role === 'Admin' && <button onClick={() => setView('admin')} className={view==='admin'?'text-indigo-400 scale-125':'text-slate-500'}>Admin</button>}
-                    </nav>
+  const Dashboard = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
+          <div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><FileText/></div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Laporan Dibuat</p>
+            <p className="text-2xl font-bold">{reports.length}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
+          <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg"><Clock/></div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Menunggu Semakan</p>
+            <p className="text-2xl font-bold">{reports.filter(r => r.status === 'Submitted').length}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
+          <div className="p-3 bg-green-100 text-green-600 rounded-lg"><CheckCircle/></div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Selesai Disemak</p>
+            <p className="text-2xl font-bold">{reports.filter(r => r.status === 'Reviewed').length}</p>
+          </div>
+        </div>
+      </div>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-bold mb-4">Aktiviti Terkini</h3>
+        <div className="space-y-4">
+          {reports.slice(0, 5).map((r, i) => (
+            <div key={i} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg border-b last:border-0 border-gray-50 transition">
+              <div className="flex items-center space-x-3">
+                <div className={`w-2 h-2 rounded-full ${r.status === 'Reviewed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                <div>
+                  <p className="font-semibold text-gray-800">Minggu {r.weekNum} ({r.year})</p>
+                  <p className="text-xs text-gray-400">Status: {r.status}</p>
                 </div>
-            );
+              </div>
+              <button onClick={() => setSubPage('jana')} className="text-indigo-600"><ChevronRight size={18}/></button>
+            </div>
+          ))}
+          {reports.length === 0 && <p className="text-center text-gray-400 py-8">Tiada rekod laporan lagi.</p>}
+        </div>
+      </div>
+    </div>
+  );
+
+  const JanaLaporan = () => {
+    const [view, setView] = useState('list'); // list, createFolder, createLog
+    const [activeReport, setActiveReport] = useState(null);
+
+    const handleCreateFolder = async (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target));
+      const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
+      if (res.success) {
+        notify("Folder mingguan dicipta!");
+        fetchReports(user);
+        setView('list');
+      } else {
+        notify(res.message, "error");
+      }
+    };
+
+    const handleSubmit = async (id) => {
+      if (confirm("Adakah anda pasti untuk menghantar? Laporan akan dikunci selepas ini.")) {
+        const res = await callAPI('submitReport', { reportId: id });
+        if (res.success) {
+          notify("Laporan berjaya dihantar!");
+          fetchReports(user);
         }
+      }
+    };
 
-        // --- SUB-COMPONENTS ---
+    if (view === 'createFolder') return (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-md mx-auto">
+        <h3 className="text-xl font-bold mb-6">Cipta Folder Laporan Mingguan</h3>
+        <form onSubmit={handleCreateFolder} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+            <input name="year" type="number" defaultValue={new Date().getFullYear()} className="w-full p-2 border rounded-lg" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Minggu</label>
+            <select name="weekNum" className="w-full p-2 border rounded-lg">
+              {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-2 pt-4">
+            <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold">Cipta Folder</button>
+            <button type="button" onClick={() => setView('list')} className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg font-bold">Batal</button>
+          </div>
+        </form>
+      </div>
+    );
 
-        function LoginView({ onLogin, loading }) {
-            return (
-                <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-                    <div className="bg-white p-12 rounded-[4rem] w-full max-w-md shadow-2xl text-center">
-                        <h1 className="text-4xl font-black mb-10 tracking-tighter uppercase leading-none">E-PPM<br/><span className="text-indigo-600 text-2xl tracking-normal">Portal Sesi 2026</span></h1>
-                        <form onSubmit={onLogin} className="space-y-4">
-                            <input name="email" type="email" placeholder="E-mel" className="w-full p-5 bg-slate-50 rounded-3xl outline-none font-bold shadow-inner" required />
-                            <input name="password" type="password" placeholder="Katalaluan" className="w-full p-5 bg-slate-50 rounded-3xl outline-none font-bold shadow-inner" required />
-                            <button disabled={loading} className="w-full bg-indigo-600 text-white p-6 rounded-3xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">
-                                {loading ? "Menyemak..." : "LOG MASUK"}
-                            </button>
-                        </form>
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-800">Pengurusan Laporan Mingguan</h3>
+          {user.role === 'User' && (
+            <button onClick={() => setView('createFolder')} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:bg-indigo-700 transition">
+              <Plus size={18}/> <span>Folder Baru</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {reports.map((r) => (
+            <div key={r.reportId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                <span className="font-bold text-indigo-700 text-lg">M{r.weekNum} ({r.year})</span>
+                <span className={`px-2 py-1 text-xs rounded-full font-medium ${r.status === 'Draft' ? 'bg-gray-200' : r.status === 'Submitted' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                  {r.status}
+                </span>
+              </div>
+              <div className="p-4 space-y-2">
+                <p className="text-sm text-gray-600 flex items-center"><Calendar size={14} className="mr-2"/> Dicipta: {r.reportId}</p>
+                {r.submittedAt && <p className="text-xs text-gray-400">Hantar: {new Date(r.submittedAt).toLocaleString()}</p>}
+                <div className="pt-4 flex gap-2">
+                  <button onClick={() => {setActiveReport(r); setView('view');}} className="flex-1 py-1.5 border border-indigo-600 text-indigo-600 rounded-md text-sm hover:bg-indigo-50 transition">Lihat Log</button>
+                  {r.status === 'Draft' && user.role === 'User' && (
+                    <button onClick={() => handleSubmit(r.reportId)} className="flex-1 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 transition">Hantar</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const SemakanLaporan = () => {
+    const [filterWeek, setFilterWeek] = useState('All');
+    
+    const handleReview = async (id) => {
+      const res = await callAPI('reviewReport', { reportId: id, gpkName: user.fullName });
+      if (res.success) {
+        notify("Laporan telah disemak!");
+        fetchReports(user);
+      }
+    };
+
+    const filtered = filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h3 className="text-xl font-bold">Semakan Laporan (GPK)</h3>
+          <div className="flex items-center space-x-2 bg-white border p-1 rounded-lg">
+            <span className="px-3 text-sm text-gray-500 font-medium">Filter Minggu:</span>
+            <select value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)} className="p-1.5 text-sm bg-transparent border-0 focus:ring-0">
+              <option value="All">Semua</option>
+              {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600">PPM</th>
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600">Minggu</th>
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600">Tarikh Hantar</th>
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600">Tindakan</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filtered.map(r => (
+                <tr key={r.reportId} className="hover:bg-gray-50 transition">
+                  <td className="px-6 py-4 font-medium">{r.userId}</td>
+                  <td className="px-6 py-4">Minggu {r.weekNum}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : '-'}</td>
+                  <td className="px-6 py-4">
+                     <span className={`px-2 py-1 text-xs rounded-full font-medium ${r.status === 'Submitted' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
+                      <button className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"><Eye size={18}/></button>
+                      {r.status === 'Submitted' && (
+                        <button onClick={() => handleReview(r.reportId)} className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition">Sahkan</button>
+                      )}
                     </div>
-                </div>
-            );
-        }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <div className="p-12 text-center text-gray-400">Tiada laporan untuk disemak.</div>}
+        </div>
+      </div>
+    );
+  };
 
-        function PpmDashboard({ user, week, setWeek, status, setStatus, setView }) {
-            return (
-                <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-500">
-                    <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Grid 56 Minggu</h3>
-                        <div className="grid grid-cols-7 gap-3">
-                            {[...Array(56)].map((_, i) => (
-                                <button key={i} onClick={() => setWeek(i+1)} className={`aspect-square rounded-2xl text-[10px] font-black border-2 transition-all ${week===i+1?'bg-indigo-600 text-white border-indigo-600 shadow-xl':'bg-slate-50 border-slate-50 text-slate-400'}`}>{i+1}</button>
-                            ))}
-                        </div>
-                    </section>
-                </div>
-            );
-        }
+  const ProfilePage = () => (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 max-w-2xl mx-auto overflow-hidden">
+      <div className="bg-indigo-600 h-32 relative">
+        <div className="absolute -bottom-12 left-8 p-1 bg-white rounded-full shadow-lg">
+           <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white">
+             {user.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover"/> : <UserCircle size={60} className="text-gray-400"/>}
+           </div>
+        </div>
+      </div>
+      <div className="pt-16 pb-8 px-8 space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">{user.fullName}</h2>
+          <p className="text-gray-500 font-medium">{user.position} | @{user.username}</p>
+        </div>
+        <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-400 uppercase">Emel</label>
+            <input defaultValue={user.email} className="w-full p-2 bg-gray-50 border-0 rounded-lg text-sm" disabled />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-400 uppercase">Jawatan</label>
+            <input defaultValue={user.position} className="w-full p-2 bg-gray-50 border-0 rounded-lg text-sm" disabled />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-400 uppercase">Username</label>
+            <input defaultValue={user.username} className="w-full p-2 bg-gray-50 border-0 rounded-lg text-sm" disabled />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-400 uppercase">GPK Semakan</label>
+            <input defaultValue={user.reportingGpk} className="w-full p-2 bg-gray-50 border-0 rounded-lg text-sm" disabled />
+          </div>
+        </form>
+        <div className="pt-4 border-t flex justify-end">
+          <button className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-indigo-700 transition">Update Data</button>
+        </div>
+      </div>
+    </div>
+  );
 
-        function HostelGrid({ config, refresh, user }) {
-            const hostelPpm = config.users.filter(u => u.category === 'Asrama');
-            const [loading, setLoading] = useState(false);
+  const Navigation = () => (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex md:flex-col md:static md:w-64 md:h-screen md:border-t-0 md:border-r p-2 z-50">
+      <div className="hidden md:block p-6 mb-4">
+        <h1 className="text-xl font-bold text-indigo-700 tracking-tight">PPM SYSTEM</h1>
+      </div>
+      <div className="flex-1 flex md:flex-col justify-around md:justify-start md:space-y-2">
+        <button onClick={() => setSubPage('dashboard')} className={`flex flex-col md:flex-row items-center p-3 rounded-xl transition ${subPage === 'dashboard' ? 'bg-indigo-50 text-indigo-600 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}>
+          <LayoutDashboard size={22} className="md:mr-3"/><span className="text-[10px] md:text-sm">Dashboard</span>
+        </button>
+        <button onClick={() => setSubPage('moment')} className={`flex flex-col md:flex-row items-center p-3 rounded-xl transition ${subPage === 'moment' ? 'bg-indigo-50 text-indigo-600 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}>
+          <Camera size={22} className="md:mr-3"/><span className="text-[10px] md:text-sm">Moment</span>
+        </button>
+        {user.role !== 'GPK' && (
+          <button onClick={() => setSubPage('jana')} className={`flex flex-col md:flex-row items-center p-3 rounded-xl transition ${subPage === 'jana' ? 'bg-indigo-50 text-indigo-600 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <FileText size={22} className="md:mr-3"/><span className="text-[10px] md:text-sm">Laporan</span>
+          </button>
+        )}
+        <button onClick={() => setSubPage('semakan')} className={`flex flex-col md:flex-row items-center p-3 rounded-xl transition ${subPage === 'semakan' ? 'bg-indigo-50 text-indigo-600 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}>
+          <ClipboardCheck size={22} className="md:mr-3"/><span className="text-[10px] md:text-sm">Semakan</span>
+        </button>
+        <button onClick={() => setSubPage('profile')} className={`flex flex-col md:flex-row items-center p-3 rounded-xl transition ${subPage === 'profile' ? 'bg-indigo-50 text-indigo-600 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}>
+          <UserCircle size={22} className="md:mr-3"/><span className="text-[10px] md:text-sm">Profile</span>
+        </button>
+      </div>
+      <button onClick={handleLogout} className="flex flex-col md:flex-row items-center p-3 text-red-500 rounded-xl hover:bg-red-50 transition mt-auto mb-2">
+        <LogOut size={22} className="md:mr-3"/><span className="text-[10px] md:text-sm">Log Out</span>
+      </button>
+    </div>
+  );
 
-            const generateDiagonal = async () => {
-                if (!confirm("Jana pusingan diagonal automatik untuk bulan ini?")) return;
-                setLoading(true);
-                const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'generateHostelDiagonal', payload: { year: 2026, month: 0 } }) });
-                await resp.json();
-                refresh();
-                setLoading(false);
-                alert("Jadual dijana!");
-            };
+  // --- RENDER LOGIC ---
 
-            return (
-                <div className="space-y-6">
-                    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex justify-between items-center">
-                        <h2 className="text-2xl font-black uppercase tracking-tighter">Jadual Asrama</h2>
-                        {user.role === 'Admin' && <button onClick={generateDiagonal} className="bg-indigo-600 text-white p-4 rounded-2xl font-black text-xs">JANA DIAGONAL</button>}
-                    </div>
-                    <div className="overflow-x-auto bg-white rounded-[3rem] shadow-xl border border-slate-200">
-                        <table className="w-full">
-                            <thead className="bg-slate-900 text-white">
-                                <tr>
-                                    <th className="p-5 text-[10px] font-black uppercase text-left sticky left-0 bg-slate-900 z-10">Tarikh</th>
-                                    {hostelPpm.map(p => <th key={p.email} className="p-5 text-[10px] font-black uppercase">{p.name.split(' ')[0]}</th>)}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {[...Array(31)].map((_, i) => (
-                                    <tr key={i} className="border-b border-slate-50">
-                                        <td className="p-4 text-[10px] font-black bg-white sticky left-0 border-r border-slate-100">{i+1}/1</td>
-                                        {hostelPpm.map(p => {
-                                            const shift = config.hostelSchedule.find(s => s[0].includes(`-01-${(i+1).toString().padStart(2,'0')}`) && s[2] === p.email);
-                                            const shiftVal = shift ? shift[1] : '-';
-                                            return (
-                                                <td key={p.email} className="p-2 text-center">
-                                                    <div className={`p-3 rounded-xl text-[9px] font-black uppercase ${shiftVal==='OFF'?'bg-slate-100 text-slate-400':shiftVal==='PTG'?'bg-indigo-100 text-indigo-700':shiftVal==='MLM'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}`}>
-                                                        {shiftVal}
-                                                    </div>
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-        }
+  if (page === 'landing') return <LandingPage />;
 
-        function ProfileView({ user, setUser, API_URL }) {
-            const handleUpload = (e) => {
-                const f = e.target.files[0];
-                const r = new FileReader();
-                r.onloadend = async () => {
-                    const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'uploadFile', payload: { filename: `PP_${user.email}.jpg`, base64: r.result, email: user.email, type: 'PROFILE', mimeType: 'image/jpeg' } }) });
-                    const res = await resp.json();
-                    if (res.status === 'success') setUser({...user, profilePic: res.url});
-                };
-                r.readAsDataURL(f);
-            };
-            return (
-                <div className="bg-white p-12 rounded-[4rem] shadow-xl text-center space-y-8 animate-in zoom-in border border-slate-100">
-                    <div className="relative inline-block">
-                        <div className="w-40 h-40 bg-indigo-600 rounded-[3rem] mx-auto overflow-hidden shadow-2xl border-4 border-white flex items-center justify-center">
-                            {user.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover" /> : <div className="text-6xl font-black text-white">{user.name.charAt(0)}</div>}
-                        </div>
-                        <label className="absolute bottom-2 right-2 bg-white p-3 rounded-2xl shadow-2xl cursor-pointer">
-                            <input type="file" onChange={handleUpload} className="hidden" accept="image/*" />
-                            Upload
-                        </label>
-                    </div>
-                    <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter leading-none">{user.name}</h2>
-                </div>
-            );
-        }
+  if (page === 'login') return (
+    <AuthLayout title="Login" back="landing">
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+          <input name="username" type="text" className="w-full p-3 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition" required />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input name="password" type="password" className="w-full p-3 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition" required />
+        </div>
+        <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition flex items-center justify-center">
+          {loading ? <Loader2 className="animate-spin mr-2"/> : "Masuk"}
+        </button>
+        <button type="button" onClick={() => setPage('forgot')} className="w-full text-indigo-600 text-sm font-medium text-center">Lupa password?</button>
+      </form>
+    </AuthLayout>
+  );
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+  if (page === 'signup') return (
+    <AuthLayout title="Pendaftaran" back="landing">
+      <form onSubmit={handleSignup} className="space-y-4">
+        <input name="fullName" placeholder="Nama Penuh" className="w-full p-3 border rounded-xl bg-gray-50" required />
+        <input name="username" placeholder="Username" className="w-full p-3 border rounded-xl bg-gray-50" required />
+        <input name="email" type="email" placeholder="Emel" className="w-full p-3 border rounded-xl bg-gray-50" required />
+        <input name="password" type="text" placeholder="Password (12 aksara)" className="w-full p-3 border rounded-xl bg-gray-50" required />
+        <select name="position" className="w-full p-3 border rounded-xl bg-gray-50" required>
+          <option value="">Pilih Jawatan</option>
+          <option value="PPM KELAS">PPM KELAS</option>
+          <option value="PPM ASRAMA">PPM ASRAMA</option>
+          <option value="PPM PRA">PPM PRA</option>
+          <option value="GPK">GPK</option>
+        </select>
+        <select name="reportingGpk" className="w-full p-3 border rounded-xl bg-gray-50">
+          <option value="">Pilih GPK Penilai</option>
+          {settings.gpks.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+        <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md flex items-center justify-center">
+          {loading ? <Loader2 className="animate-spin mr-2"/> : "Daftar Sekarang"}
+        </button>
+      </form>
+    </AuthLayout>
+  );
+
+  if (page === 'forgot') return (
+    <AuthLayout title="Reset Password" back="login">
+      <form onSubmit={async (e) => {
+        e.preventDefault();
+        const res = await callAPI('forgotPassword', Object.fromEntries(new FormData(e.target)));
+        if(res.success) { notify(res.message); setPage('login'); } else notify(res.message, 'error');
+      }} className="space-y-4">
+        <input name="username" placeholder="Masukkan Username Anda" className="w-full p-3 border rounded-xl bg-gray-50" required />
+        <input name="newPassword" placeholder="Password Baru (12 aksara)" className="w-full p-3 border rounded-xl bg-gray-50" required />
+        <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md">Kemaskini Password</button>
+      </form>
+    </AuthLayout>
+  );
+
+  if (page === 'app') return (
+    <div className="min-h-screen bg-slate-50 md:flex">
+      <Navigation />
+      <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto">
+        <div className="max-w-6xl mx-auto">
+          {notification && (
+            <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-2xl z-[100] border-l-4 transition-all duration-300 transform scale-100 ${notification.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'}`}>
+              {notification.msg}
+            </div>
+          )}
+          
+          <div className="mb-8 flex justify-between items-center md:hidden">
+             <h1 className="text-xl font-bold text-indigo-700">PPM SYSTEM</h1>
+             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold uppercase">
+               {user.username.substring(0,2)}
+             </div>
+          </div>
+
+          {subPage === 'dashboard' && <Dashboard />}
+          {subPage === 'moment' && (
+            <div className="flex flex-col items-center justify-center h-96 text-gray-400 bg-white rounded-2xl border-2 border-dashed border-gray-100">
+               <Camera size={48} className="mb-4 opacity-20"/>
+               <p className="font-medium">Halaman Moment Sedang Dibangunkan</p>
+               <p className="text-sm">Di sini anda akan berkongsi gambar aktiviti murid.</p>
+            </div>
+          )}
+          {subPage === 'jana' && <JanaLaporan />}
+          {subPage === 'semakan' && <SemakanLaporan />}
+          {subPage === 'profile' && <ProfilePage />}
+        </div>
+      </main>
+    </div>
+  );
+
+  return null;
+}
