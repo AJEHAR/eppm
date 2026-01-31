@@ -562,48 +562,92 @@
                 );
             };
 
-            const ProfilePage = () => (
-                <div className="max-w-4xl mx-auto space-y-6">
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="h-48 bg-gradient-to-r from-indigo-500 to-blue-600 relative">
-                            <div className="absolute -bottom-16 left-12 p-1.5 bg-white rounded-full shadow-2xl">
-                                <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-4 border-white shadow-inner">
-                                    {user.profilePic ? <img src={user.profilePic} className="w-full h-full object-cover" /> : <Icon name="UserCircle" size={80} className="text-slate-300" />}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="pt-20 pb-10 px-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-                            <div>
-                                <h2 className="text-3xl font-black text-slate-800">{user.fullName}</h2>
-                                <p className="text-indigo-600 font-bold tracking-wide uppercase text-sm mt-1">{user.position}</p>
-                                <div className="flex items-center mt-4 space-x-4 text-slate-400">
-                                    <div className="flex items-center text-xs"><Icon name="Calendar" size={14} className="mr-1.5"/> @{user.username}</div>
-                                    <div className="flex items-center text-xs"><Icon name="FileText" size={14} className="mr-1.5"/> Level: {user.role}</div>
-                                </div>
-                            </div>
-                            <button className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:-translate-y-1 transition-transform">Edit Profil</button>
-                        </div>
-                    </div>
+            const ProfilePage = () => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [formData, setFormData] = useState({...user});
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                            <h4 className="font-black text-slate-800 border-b pb-4">Butiran Peribadi</h4>
-                            <div className="space-y-4">
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Username</p><p className="font-bold text-slate-700">{user.username}</p></div>
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alamat Emel</p><p className="font-bold text-slate-700">{user.email}</p></div>
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Jawatan Terkini</p><p className="font-bold text-slate-700">{user.position}</p></div>
-                            </div>
-                        </div>
-                        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                            <h4 className="font-black text-slate-800 border-b pb-4">Pihak Berautoriti</h4>
-                            <div className="space-y-4">
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GPK Penilai</p><p className="font-bold text-indigo-600">{user.reportingGpk || 'Belum Tetap'}</p></div>
-                                <p className="text-xs text-slate-400 leading-relaxed italic">Laporan mingguan akan dihantar secara automatik ke dalam senarai semakan GPK yang dinyatakan di atas.</p>
-                            </div>
-                        </div>
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file && file.size > 1048576) { // Had 1MB
+            notify("Saiz gambar terlalu besar (Maksimum 1MB)", "error");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => setFormData({...formData, profilePic: reader.result});
+        if(file) reader.readAsDataURL(file);
+    };
+
+    const handleSave = async () => {
+        const res = await callAPI('updateProfile', formData);
+        if(res.success) {
+            setUser(formData);
+            localStorage.setItem('ppm_user', JSON.stringify(formData));
+            setIsEditing(false);
+            notify("Profil anda telah berjaya dikemaskini!");
+        }
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto bg-white rounded-[40px] shadow-sm border overflow-hidden">
+            <div className="h-40 bg-indigo-600 relative">
+                <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 p-2 bg-white rounded-full shadow-xl">
+                    <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden relative group border-4 border-white">
+                        {formData.profilePic ? <img src={formData.profilePic} className="w-full h-full object-cover"/> : <Icon name="UserCircle" size={60} className="text-slate-300"/>}
+                        {isEditing && (
+                            <label className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Icon name="Camera" size={24} className="text-white"/>
+                                <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*"/>
+                            </label>
+                        )}
                     </div>
                 </div>
-            );
+            </div>
+            <div className="pt-20 pb-12 px-10 text-center space-y-6">
+                {!isEditing ? (
+                    <>
+                        <div>
+                            <h2 className="text-3xl font-black">{user.fullName}</h2>
+                            <p className="text-indigo-600 font-bold uppercase text-sm">{user.position}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-left">
+                            <div className="p-4 bg-slate-50 rounded-2xl">
+                                <p className="text-[10px] font-bold text-slate-400">USERNAME</p>
+                                <p className="font-bold">@{user.username}</p>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-2xl">
+                                <p className="text-[10px] font-bold text-slate-400">EMEL</p>
+                                <p className="font-bold truncate">{user.email}</p>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-2xl col-span-2 border-l-4 border-indigo-600">
+                                <p className="text-[10px] font-bold text-slate-400">GPK PENILAI</p>
+                                <p className="font-bold">{user.reportingGpk || 'Tidak Ditetapkan'}</p>
+                            </div>
+                        </div>
+                        <button onClick={()=>setIsEditing(true)} className="w-full py-4 border-2 border-indigo-600 text-indigo-600 rounded-2xl font-black hover:bg-indigo-50">SUNTING PROFIL</button>
+                    </>
+                ) : (
+                    <div className="space-y-4 text-left">
+                        <label className="text-xs font-bold text-slate-400">Nama Penuh</label>
+                        <input value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full p-3 border rounded-xl" />
+                        
+                        <label className="text-xs font-bold text-slate-400">GPK Penilai</label>
+                        <select value={formData.reportingGpk} onChange={e=>setFormData({...formData, reportingGpk: e.target.value})} className="w-full p-3 border rounded-xl">
+                            <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
+                            <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
+                            <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
+                        </select>
+                        
+                        <div className="flex gap-2 pt-4">
+                            <button onClick={handleSave} className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold">Simpan Perubahan</button>
+                            <button onClick={()=>setIsEditing(false)} className="flex-1 bg-slate-100 py-4 rounded-2xl font-bold">Batal</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 
             // --- RENDER ---
 
@@ -655,10 +699,12 @@
                                             <option value="PPM PRA">PPM PRA</option>
                                             <option value="GPK">GPK</option>
                                         </select>
-                                        <select name="reportingGpk" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500">
-                                            <option value="">Pilih GPK Penilai</option>
-                                            {settings.gpks.map(g => <option key={g} value={g}>{g}</option>)}
-                                        </select>
+                                        <select name="reportingGpk" className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-medium" required>
+    <option value="">Pilih GPK Penilai</option>
+    <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
+    <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
+    <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
+</select>
                                         <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 mt-4">{loading ? 'Memproses...' : 'Daftar Sekarang'}</button>
                                     </form>
                                 ) : isForgot ? (
