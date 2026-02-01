@@ -81,6 +81,9 @@
             const [settings, setSettings] = useState({ locations: ["Kelas", "Asrama", "Padang", "Dewan", "Kantin"], gpks: [] });
             const [notification, setNotification] = useState(null);
             const [showPassword, setShowPassword] = useState(false);
+            const [rememberMe, setRememberMe] = useState(false);
+            const [savedUsername, setSavedUsername] = useState("");
+            const [showPassword, setShowPassword] = useState(false);
 
             useEffect(() => {
                 const saved = localStorage.getItem('ppm_user');
@@ -304,10 +307,6 @@
                         setShowLogForm(false);
                     }
                 };
-
-                const [rememberMe, setRememberMe] = useState(false);
-                const [savedUsername, setSavedUsername] = useState("");
-                const [showPassword, setShowPassword] = useState(false);
 
                 const confirmSubmit = async (id) => {
                     if (window.confirm("Adakah anda pasti? Laporan tidak boleh diubah selepas dihantar.")) {
