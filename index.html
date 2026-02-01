@@ -4,18 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem PPM - Pengurusan Digital</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .fade-in { animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -24,245 +25,54 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
+        // Configuration
         const API_URL = "https://script.google.com/macros/s/AKfycbwQDoFSx5gDD07lbAM44u8A-2CTRHgXuvHArkPluWUsnbnh3q8i89v_yFNiwjRq_1Ce/exec";
 
-        // --- UTILS ---
-        const callAPI = async (action, payload, setLoading, notify) => {
-            setLoading(true);
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    body: JSON.stringify({ action, payload })
-                });
-                const res = await response.json();
-                setLoading(false);
-                return res;
-            } catch (err) {
-                setLoading(false);
-                notify("Ralat sambungan pangkalan data.", "error");
-                return { success: false };
-            }
-        };
-
+        // Fixed Icon Component Wrapper for Lucide
         const Icon = ({ name, size = 20, className = "" }) => {
             const [iconHtml, setIconHtml] = useState("");
+            
             useEffect(() => {
-                const timer = setTimeout(() => {
-                    if (window.lucide && window.lucide.icons && window.lucide.icons[name]) {
-                        const iconData = window.lucide.icons[name];
-                        const content = iconData.map(([tag, attrs]) => {
-                            const attrStr = Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ');
-                            return `<${tag} ${attrStr}></${tag}>`;
-                        }).join('');
-                        setIconHtml(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-${name.toLowerCase()} ${className}">${content}</svg>`);
-                    }
-                }, 10);
-                return () => clearTimeout(timer);
+                if (window.lucide && window.lucide.icons && window.lucide.icons[name]) {
+                    const iconData = window.lucide.icons[name];
+                    
+                    // Constructing the SVG content from Lucide icon data
+                    const content = iconData.map(([tag, attrs]) => {
+                        const attrStr = Object.entries(attrs)
+                            .map(([k, v]) => `${k}="${v}"`)
+                            .join(' ');
+                        return `<${tag} ${attrStr}></${tag}>`;
+                    }).join('');
+
+                    const svg = `
+                        <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="${size}" 
+                            height="${size}" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            stroke-width="2" 
+                            stroke-linecap="round" 
+                            stroke-linejoin="round" 
+                            class="lucide lucide-${name.toLowerCase()} ${className}"
+                        >
+                            ${content}
+                        </svg>
+                    `;
+                    setIconHtml(svg);
+                }
             }, [name, size, className]);
-            return <span className="inline-flex items-center justify-center" dangerouslySetInnerHTML={{ __html: iconHtml }} />;
-        };
-
-        // --- SUB-COMPONENTS ---
-
-        const Dashboard = ({ reports }) => (
-            <div className="space-y-6 fade-in">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-slate-800">Ringkasan Prestasi</h2>
-                    <div className="text-xs font-bold text-slate-400 bg-white px-4 py-2 rounded-full border shadow-sm">
-                        {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Laporan Dibuat</p>
-                        <p className="text-4xl font-black text-slate-800 mt-1">{reports.length}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Menunggu Semakan</p>
-                        <p className="text-4xl font-black text-orange-500 mt-1">{reports.filter(r => r.status === 'Submitted').length}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selesai Disemak</p>
-                        <p className="text-4xl font-black text-emerald-500 mt-1">{reports.filter(r => r.status === 'Reviewed').length}</p>
-                    </div>
-                </div>
-            </div>
-        );
-
-        const JanaLaporan = ({ reports, user, settings, callAPI, setLoading, notify, refreshReports }) => {
-            const [view, setView] = useState('list');
-            const [activeReport, setActiveReport] = useState(null);
-            const [showLogForm, setShowLogForm] = useState(false);
-
-            const handleCreateFolder = async (e) => {
-                e.preventDefault();
-                const d = Object.fromEntries(new FormData(e.target));
-                const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid }, setLoading, notify);
-                if (res.success) {
-                    notify("Tapak mingguan berjaya dicipta!");
-                    refreshReports(user);
-                    setView('list');
-                } else notify(res.message, "error");
-            };
-
-            const handleAddLog = async (e) => {
-                e.preventDefault();
-                const fd = new FormData(e.target);
-                const payload = {
-                    reportId: activeReport.reportId,
-                    userId: user.uid,
-                    date: fd.get('date'),
-                    day: new Date(fd.get('date')).toLocaleDateString('ms-MY', { weekday: 'long' }),
-                    location: fd.get('location'),
-                    attendance: fd.get('attendance'),
-                    startTime: fd.get('startTime'),
-                    endTime: fd.get('endTime'),
-                    tasks: [
-                        { m: fd.get('m1'), t: fd.get('t1'), c: fd.get('c1') },
-                        { m: fd.get('m2'), t: fd.get('t2'), c: fd.get('c2') },
-                        { m: fd.get('m3'), t: fd.get('t3'), c: fd.get('c3') },
-                    ]
-                };
-                const res = await callAPI('saveDailyLog', payload, setLoading, notify);
-                if (res.success) {
-                    notify("Log harian berjaya disimpan!");
-                    refreshReports(user);
-                    setShowLogForm(false);
-                    setView('list'); // Reset view to update data
-                }
-            };
-
-            if (view === 'create') return (
-                <div className="max-w-md mx-auto bg-white p-8 rounded-[40px] shadow-2xl border fade-in">
-                    <h3 className="text-xl font-black mb-6">Cipta Tapak Minggu</h3>
-                    <form onSubmit={handleCreateFolder} className="space-y-4">
-                        <input name="year" type="number" defaultValue={new Date().getFullYear()} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" required />
-                        <select name="weekNum" className="w-full p-4 bg-slate-50 rounded-2xl outline-none">
-                            {[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
-                        </select>
-                        <div className="flex gap-2">
-                            <button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold">Cipta</button>
-                            <button type="button" onClick={() => setView('list')} className="flex-1 bg-slate-100 py-4 rounded-2xl font-bold">Batal</button>
-                        </div>
-                    </form>
-                </div>
-            );
 
             return (
-                <div className="space-y-6 fade-in">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-xl font-black text-slate-800">Laporan Mingguan Saya</h3>
-                        <button onClick={() => setView('create')} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center shadow-lg">
-                            <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {reports.map((r) => (
-                            <div key={r.reportId} className="bg-white rounded-[32px] shadow-sm border p-6 border-t-4 border-t-indigo-500 hover:shadow-xl transition-all">
-                                <h4 className="text-2xl font-black text-slate-800">Minggu {r.weekNum}</h4>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Sesi {r.year}</p>
-                                <div className="flex items-center mb-6">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${r.status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                                        {r.status}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button onClick={() => {setActiveReport(r); setShowLogForm(true);}} className="py-3 bg-indigo-50 text-indigo-700 rounded-2xl text-xs font-bold">Tambah Log</button>
-                                    <button className="py-3 bg-slate-50 text-slate-600 rounded-2xl text-xs font-bold">Lihat</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {showLogForm && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                            <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
-                                <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                                    <h3 className="font-bold">Tambah Log Harian</h3>
-                                    <button onClick={() => setShowLogForm(false)}><Icon name="X" /></button>
-                                </div>
-                                <form onSubmit={handleAddLog} className="p-8 space-y-6 overflow-y-auto no-scrollbar">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <input name="date" type="date" className="p-3 bg-slate-50 rounded-xl" required />
-                                        <select name="location" className="p-3 bg-slate-50 rounded-xl">
-                                            {settings.locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                        </select>
-                                        <input name="attendance" type="number" placeholder="Bil. Murid" className="p-3 bg-slate-50 rounded-xl" required />
-                                        <div className="flex gap-2">
-                                            <input name="startTime" type="time" className="flex-1 p-3 bg-slate-50 rounded-xl" required />
-                                            <input name="endTime" type="time" className="flex-1 p-3 bg-slate-50 rounded-xl" required />
-                                        </div>
-                                    </div>
-                                    {[1,2,3].map(i => (
-                                        <div key={i} className="p-4 bg-slate-50 rounded-3xl space-y-2 border">
-                                            <input name={`m${i}`} placeholder={`Waktu Tugasan ${i}`} className="w-full bg-transparent border-b outline-none text-sm font-bold" />
-                                            <textarea name={`t${i}`} placeholder="Huraian Tugasan..." className="w-full p-3 rounded-xl border-0 text-sm h-20" required></textarea>
-                                            <input name={`c${i}`} placeholder="Catatan/Impak" className="w-full p-2 rounded-xl text-xs italic bg-white" />
-                                        </div>
-                                    ))}
-                                    <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg">Simpan Log</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <span 
+                    className="inline-flex items-center justify-center" 
+                    dangerouslySetInnerHTML={{ __html: iconHtml }} 
+                />
             );
         };
 
-        const ProfilePage = ({ user, callAPI, setLoading, notify, onUpdate }) => {
-            const [isEditing, setIsEditing] = useState(false);
-            const [formData, setFormData] = useState({...user});
-
-            const handleSave = async () => {
-                if (formData.password?.length !== 12) return notify("Password mesti 12 aksara!", "error");
-                const res = await callAPI('updateProfile', formData, setLoading, notify);
-                if (res.success) {
-                    onUpdate(formData);
-                    setIsEditing(false);
-                    notify("Profil berjaya dikemaskini!");
-                }
-            };
-
-            return (
-                <div className="max-w-2xl mx-auto bg-white rounded-[40px] shadow-sm border overflow-hidden fade-in">
-                    <div className="h-32 bg-indigo-600 relative">
-                        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center overflow-hidden border-4 border-white">
-                            {formData.profilePic ? <img src={formData.profilePic} className="w-full h-full object-cover" /> : <Icon name="User" size={40} className="text-slate-200"/>}
-                        </div>
-                    </div>
-                    <div className="pt-16 pb-10 px-8 space-y-6">
-                        {!isEditing ? (
-                            <div className="text-center space-y-4">
-                                <div>
-                                    <h2 className="text-2xl font-black text-slate-800">{user.fullName}</h2>
-                                    <p className="text-indigo-600 font-bold uppercase text-[10px] tracking-widest">{user.position}</p>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                                    <div className="p-4 bg-slate-50 rounded-2xl"><p className="text-[10px] text-slate-400 font-bold uppercase">Username</p><p className="font-bold">@{user.username}</p></div>
-                                    <div className="p-4 bg-slate-50 rounded-2xl"><p className="text-[10px] text-slate-400 font-bold uppercase">Emel</p><p className="font-bold truncate">{user.email}</p></div>
-                                </div>
-                                <button onClick={() => setIsEditing(true)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold">Kemaskini Profil</button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <input value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" placeholder="Nama Penuh" />
-                                <input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" placeholder="Emel" />
-                                <input value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} maxLength={12} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-mono" placeholder="Password Baru (12 Karakter)" />
-                                <div className="flex gap-2">
-                                    <button onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-bold">Simpan</button>
-                                    <button onClick={() => setIsEditing(false)} className="flex-1 bg-slate-100 py-4 rounded-2xl font-bold">Batal</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        };
-
-        // --- MAIN APP ---
-        function App() {
+         function App() {
             const [page, setPage] = useState('landing'); 
             const [subPage, setSubPage] = useState('dashboard');
             const [user, setUser] = useState(null);
@@ -275,10 +85,9 @@
             const [rememberMe, setRememberMe] = useState(false);
             const [savedUsername, setSavedUsername] = useState("");
 
+
             useEffect(() => {
                 const saved = localStorage.getItem('ppm_user');
-                const remembered = localStorage.getItem('ppm_rem_user');
-                if (remembered) { setSavedUsername(remembered); setRememberMe(true); }
                 if (saved) {
                     const u = JSON.parse(saved);
                     setUser(u);
@@ -293,103 +102,878 @@
                 setTimeout(() => setNotification(null), 4000);
             };
 
+            const callAPI = async (action, payload) => {
+                setLoading(true);
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        body: JSON.stringify({ action, payload })
+                    });
+                    const res = await response.json();
+                    setLoading(false);
+                    return res;
+                } catch (err) {
+                    setLoading(false);
+                    notify("Gagal menyambung ke database. Pastikan GAS di-deploy sebagai 'Anyone'.", "error");
+                    return { success: false };
+                }
+            };
+
             const fetchInitialData = async () => {
-                const res = await callAPI('getInitialData', {}, setLoading, notify);
+                const res = await callAPI('getInitialData', {});
                 if (res.success) setSettings(prev => ({ ...prev, ...res }));
             };
 
             const fetchReports = async (currUser) => {
-                const res = await callAPI('getReports', { userId: currUser.uid, role: currUser.role }, setLoading, notify);
+                const res = await callAPI('getReports', { userId: currUser.uid, role: currUser.role });
                 if (res.success) setReports(res.reports);
             };
 
+            // --- AUTH LOGIC ---
             const handleLogin = async (e) => {
                 e.preventDefault();
                 const data = Object.fromEntries(new FormData(e.target));
-                const res = await callAPI('login', data, setLoading, notify);
+                const res = await callAPI('login', data);
                 if (res.success) {
                     setUser(res.user);
                     localStorage.setItem('ppm_user', JSON.stringify(res.user));
-                    if (rememberMe) localStorage.setItem('ppm_rem_user', data.username);
-                    else localStorage.removeItem('ppm_rem_user');
                     setPage('app');
                     fetchReports(res.user);
-                } else notify("Username atau Password Salah!", "error");
+                } else {
+                    notify(res.message, "error");
+                }
             };
 
-            if (page === 'landing') return (
-                <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-6 text-white text-center">
-                    <div className="bg-white/10 w-24 h-24 rounded-[32px] flex items-center justify-center mb-8 border border-white/20">
-                        <Icon name="FileText" size={48} />
+            const handleSignup = async (e) => {
+                e.preventDefault();
+                const data = Object.fromEntries(new FormData(e.target));
+                if (data.password.length !== 12) return notify("Password mesti tepat 12 aksara!", "error");
+                
+                data.role = data.position === 'GPK' ? 'GPK' : 'User';
+                if (data.username === 'admin') data.role = 'Admin';
+
+                const res = await callAPI('signup', data);
+                if (res.success) {
+                    notify("Pendaftaran berjaya! Sila login.");
+                    setPage('login');
+                } else {
+                    notify(res.message, "error");
+                }
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('ppm_user');
+                setUser(null);
+                setPage('landing');
+            };
+
+            // --- APP COMPONENTS ---
+
+            const SidebarItem = ({ id, icon, label, roles = [] }) => {
+                if (roles.length > 0 && !roles.includes(user?.role)) return null;
+                const active = subPage === id;
+                return (
+                    <button 
+                        onClick={() => setSubPage(id)}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                    >
+                        <Icon name={icon} size={20} />
+                        <span className="font-semibold text-sm">{label}</span>
+                    </button>
+                );
+            };
+
+            // --- SUBPAGES ---
+
+            const Dashboard = () => (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-bold text-slate-800">Ringkasan Prestasi</h2>
+                        <div className="text-sm font-medium text-slate-500 bg-white px-4 py-2 rounded-full border border-slate-100 shadow-sm">
+                            {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </div>
                     </div>
-                    <h1 className="text-6xl font-black mb-4 tracking-tighter">SISTEM PPM</h1>
-                    <p className="text-xl opacity-80 mb-12">Digitalisasi Laporan Pembantu Pengurusan Murid.</p>
-                    <div className="flex gap-4 w-full max-w-sm">
-                        <button onClick={() => setPage('login')} className="flex-1 py-4 bg-white text-indigo-700 font-black rounded-2xl shadow-xl">LOG MASUK</button>
-                        <button className="flex-1 py-4 border-2 border-white/40 text-white font-black rounded-2xl">DAFTAR</button>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <Icon name="FileText" size={64} />
+                            </div>
+                            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Laporan Dibuat</p>
+                            <p className="text-4xl font-black text-slate-800 mt-2">{reports.length}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <Icon name="Clock" size={64} />
+                            </div>
+                            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Menunggu Semakan</p>
+                            <p className="text-4xl font-black text-orange-500 mt-2">{reports.filter(r => r.status === 'Submitted').length}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <Icon name="CheckCircle" size={64} />
+                            </div>
+                            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Selesai Disemak</p>
+                            <p className="text-4xl font-black text-emerald-500 mt-2">{reports.filter(r => r.status === 'Reviewed').length}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                        <h3 className="font-bold text-slate-800 mb-4">Laporan Mingguan Terkini</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-slate-50 text-slate-400 text-xs uppercase font-bold">
+                                        <th className="pb-4">Minggu</th>
+                                        <th className="pb-4">Tarikh Hantar</th>
+                                        <th className="pb-4">Status</th>
+                                        <th className="pb-4">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {reports.slice(0,5).map((r, i) => (
+                                        <tr key={i} className="group hover:bg-slate-50/50 transition-colors">
+                                            <td className="py-4 font-bold text-slate-700">Minggu {r.weekNum} <span className="text-xs font-normal text-slate-400">({r.year})</span></td>
+                                            <td className="py-4 text-sm text-slate-500">{r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : 'Belum Hantar'}</td>
+                                            <td className="py-4">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                                    r.status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 
+                                                    r.status === 'Submitted' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                    {r.status}
+                                                </span>
+                                            </td>
+                                            <td className="py-4">
+                                                <button onClick={() => setSubPage('jana')} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                                    <Icon name="ChevronRight" size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {reports.length === 0 && <tr><td colSpan="4" className="py-12 text-center text-slate-400 italic">Tiada rekod dijumpai</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             );
 
-            if (page === 'login') return (
-                <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
-                    <div className="w-full max-w-md bg-white p-10 rounded-[48px] shadow-2xl border">
-                        <h3 className="text-3xl font-black mb-8 text-center text-slate-800">Log Masuk</h3>
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <input name="username" defaultValue={savedUsername} placeholder="Username" className="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-500" required />
-                            <div className="relative">
-                                <input name="password" type={showPassword ? "text" : "password"} placeholder="Password" className="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-500" required />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                                    <Icon name={showPassword ? "Eye" : "EyeOff"} size={18} />
-                                </button>
+            const JanaLaporan = () => {
+                const [view, setView] = useState('list');
+                const [activeReport, setActiveReport] = useState(null);
+                const [showLogForm, setShowLogForm] = useState(false);
+
+                const handleCreateFolder = async (e) => {
+                    e.preventDefault();
+                    const d = Object.fromEntries(new FormData(e.target));
+                    const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
+                    if (res.success) {
+                        notify("Folder mingguan berjaya dicipta!");
+                        fetchReports(user);
+                        setView('list');
+                    } else notify(res.message, "error");
+                };
+
+                const handleAddLog = async (e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.target);
+                    const taskRows = [
+                        { m: fd.get('m1'), t: fd.get('t1'), c: fd.get('c1') },
+                        { m: fd.get('m2'), t: fd.get('t2'), c: fd.get('c2') },
+                        { m: fd.get('m3'), t: fd.get('t3'), c: fd.get('c3') },
+                    ];
+                    const payload = {
+                        reportId: activeReport.reportId,
+                        userId: user.uid,
+                        date: fd.get('date'),
+                        day: new Date(fd.get('date')).toLocaleDateString('ms-MY', { weekday: 'long' }),
+                        location: fd.get('location'),
+                        attendance: fd.get('attendance'),
+                        startTime: fd.get('startTime'),
+                        endTime: fd.get('endTime'),
+                        tasks: taskRows
+                    };
+                    const res = await callAPI('saveDailyLog', payload);
+                    if (res.success) {
+                        notify("Log harian ditambah!");
+                        fetchReports(user);
+                        setShowLogForm(false);
+                    }
+                };
+
+                const confirmSubmit = async (id) => {
+                    if (window.confirm("Adakah anda pasti? Laporan tidak boleh diubah selepas dihantar.")) {
+                        const res = await callAPI('submitReport', { reportId: id });
+                        if (res.success) {
+                            notify("Laporan berjaya dihantar!");
+                            fetchReports(user);
+                        }
+                    }
+                };
+
+                if (view === 'createFolder') return (
+                    <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100 mt-10">
+                        <h3 className="text-xl font-black mb-6 flex items-center"><Icon name="Plus" className="mr-2 text-indigo-600"/> Cipta Tapak Minggu</h3>
+                        <form onSubmit={handleCreateFolder} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Tahun</label>
+                                <input name="year" type="number" defaultValue={new Date().getFullYear()} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" required />
                             </div>
-                            <label className="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="rounded" />
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ingat Saya</span>
-                            </label>
-                            <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg">
-                                {loading ? "Sila Tunggu..." : "MASUK SEKARANG"}
-                            </button>
-                            <button type="button" onClick={() => setPage('landing')} className="w-full text-xs font-bold text-slate-400 uppercase mt-4">Kembali</button>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minggu</label>
+                                <select name="weekNum" className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex gap-2 pt-4">
+                                <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100">Cipta</button>
+                                <button type="button" onClick={() => setView('list')} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold">Batal</button>
+                            </div>
                         </form>
                     </div>
+                );
+
+                if (view === 'view' && activeReport) return (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <button onClick={() => setView('list')} className="flex items-center text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-lg">
+                                <Icon name="ArrowLeft" size={16} className="mr-2" /> Kembali ke Senarai
+                            </button>
+                            <h2 className="text-xl font-black">Minggu {activeReport.weekNum} ({activeReport.year})</h2>
+                            {activeReport.status === 'Draft' && (
+                                <button onClick={() => setShowLogForm(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center">
+                                    <Icon name="Plus" size={16} className="mr-2"/> Tambah Log Harian
+                                </button>
+                            )}
+                        </div>
+
+                        {showLogForm && (
+                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                                <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                                    <div className="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
+                                        <h3 className="font-bold text-lg">Tambah Laporan Harian</h3>
+                                        <button onClick={() => setShowLogForm(false)} className="hover:rotate-90 transition-transform"><Icon name="Plus" className="rotate-45"/></button>
+                                    </div>
+                                    <form onSubmit={handleAddLog} className="p-8 space-y-6 overflow-y-auto no-scrollbar">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase">Tarikh</label>
+                                                <input name="date" type="date" className="w-full p-2.5 border rounded-xl" required />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase">Lokasi</label>
+                                                <select name="location" className="w-full p-2.5 border rounded-xl">
+                                                    {settings.locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase">Kehadiran Murid</label>
+                                                <input name="attendance" type="number" className="w-full p-2.5 border rounded-xl" required />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase">Masuk</label>
+                                                    <input name="startTime" type="time" className="w-full p-2.5 border rounded-xl" required />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase">Keluar</label>
+                                                    <input name="endTime" type="time" className="w-full p-2.5 border rounded-xl" required />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <label className="text-xs font-bold text-slate-400 uppercase">Perihal Laporan (3 Tugasan Utama)</label>
+                                            {[1,2,3].map(i => (
+                                                <div key={i} className="grid grid-cols-12 gap-2">
+                                                    <input name={`m${i}`} placeholder="Masa" className="col-span-2 p-2 border rounded-lg text-xs" />
+                                                    <input name={`t${i}`} placeholder="Tugasan" className="col-span-5 p-2 border rounded-lg text-xs" />
+                                                    <input name={`c${i}`} placeholder="Catatan" className="col-span-5 p-2 border rounded-lg text-xs" />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold">Simpan Log</button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            {activeReport.logs?.map((log, idx) => (
+                                <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                    <div className="flex justify-between border-b pb-4 mb-4">
+                                        <div className="flex gap-4">
+                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Tarikh</p><p className="font-bold text-slate-700">{new Date(log.date).toLocaleDateString()} ({log.day})</p></div>
+                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Lokasi</p><p className="font-bold text-slate-700">{log.location}</p></div>
+                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Hadir</p><p className="font-bold text-slate-700">{log.attendance} Orang</p></div>
+                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Masa</p><p className="font-bold text-slate-700">{log.startTime} - {log.endTime}</p></div>
+                                        </div>
+                                    </div>
+                                    <table className="w-full text-xs text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-slate-500 uppercase font-bold">
+                                                <th className="p-2 border">Masa</th>
+                                                <th className="p-2 border">Tugasan</th>
+                                                <th className="p-2 border">Catatan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {log.tasks?.map((t, ti) => (
+                                                <tr key={ti}>
+                                                    <td className="p-2 border">{t.m || '-'}</td>
+                                                    <td className="p-2 border font-medium">{t.t || '-'}</td>
+                                                    <td className="p-2 border text-slate-500 italic">{t.c || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ))}
+                            {activeReport.logs?.length === 0 && <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium">Tiada log harian ditemui. Klik butang tambah di atas.</div>}
+                        </div>
+                    </div>
+                );
+
+                return (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
+                            {user.role === 'User' && (
+                                <button onClick={() => setView('createFolder')} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg shadow-indigo-100 hover:-translate-y-1 transition-transform">
+                                    <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {reports.map((r) => (
+                                <div key={r.reportId} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500">
+                                    <div className="p-6">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h4 className="text-2xl font-black text-slate-800">Minggu {r.weekNum}</h4>
+                                                <p className="text-sm font-medium text-slate-400 italic">Sesi {r.year}</p>
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                                r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
+                                                r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                                            }`}>
+                                                {r.status}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-3 pt-4 border-t border-slate-50">
+                                            <div className="flex items-center text-slate-500 text-xs font-medium">
+                                                <Icon name="Calendar" size={14} className="mr-2 text-indigo-400" /> ID: {r.reportId}
+                                            </div>
+                                            {r.submittedAt && (
+                                                <div className="flex items-center text-slate-500 text-xs font-medium">
+                                                    <Icon name="Clock" size={14} className="mr-2 text-indigo-400" /> Hantar: {new Date(r.submittedAt).toLocaleString()}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 mt-6">
+                                            <button onClick={() => {setActiveReport(r); setView('view');}} className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors">Lihat Log</button>
+                                            {r.status === 'Draft' && user.role === 'User' && (
+                                                <button onClick={() => confirmSubmit(r.reportId)} className="py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors">Hantar</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
+
+            const SemakanLaporan = () => {
+                const [filterWeek, setFilterWeek] = useState('All');
+                
+                const handleReview = async (id) => {
+                    if (window.confirm("Sahkan laporan ini?")) {
+                        const res = await callAPI('reviewReport', { reportId: id, gpkName: user.fullName });
+                        if (res.success) {
+                            notify("Laporan telah disahkan.");
+                            fetchReports(user);
+                        }
+                    }
+                };
+
+                const filtered = filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek);
+
+                return (
+                    <div className="space-y-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <h3 className="text-2xl font-black text-slate-800">Semakan Laporan</h3>
+                            <div className="flex items-center space-x-2 bg-white px-4 py-2 border rounded-2xl shadow-sm">
+                                <Icon name="Calendar" size={18} className="text-slate-400" />
+                                <select value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)} className="bg-transparent border-none text-sm font-bold focus:ring-0">
+                                    <option value="All">Semua Minggu</option>
+                                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50/50 border-b border-slate-100">
+                                    <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                        <th className="px-6 py-4">PPM / Pemilik</th>
+                                        <th className="px-6 py-4">Butiran Laporan</th>
+                                        <th className="px-6 py-4">Tarikh Serah</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4 text-center">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {filtered.map(r => (
+                                        <tr key={r.reportId} className="hover:bg-slate-50/30 transition-colors">
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">{r.userId.substring(0,2)}</div>
+                                                    <div><p className="font-bold text-slate-700 text-sm capitalize">{r.userId}</p></div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <p className="font-bold text-slate-800 text-sm">Minggu {r.weekNum}</p>
+                                                <p className="text-[10px] text-slate-400">Tahun {r.year}</p>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <p className="text-xs font-medium text-slate-500">{r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : 'Belum Serah'}</p>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                                                    r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                                                }`}>
+                                                    {r.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center justify-center space-x-2">
+                                                    <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Icon name="Eye" size={20}/></button>
+                                                    {r.status === 'Submitted' && user.role === 'GPK' && (
+                                                        <button onClick={() => handleReview(r.reportId)} className="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-50">Sahkan</button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filtered.length === 0 && <tr><td colSpan="5" className="py-20 text-center text-slate-300 italic">Tiada laporan menunggu semakan</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            };
+
+            const ProfilePage = () => {
+    const [isEditing, setIsEditing] = useState(false);
+    // Inisialisasi formData dengan semua data user sedia ada
+    const [formData, setFormData] = useState({...user});
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 1048576) { // Had 1MB untuk mengelakkan sel Google Sheet menjadi terlalu berat
+                notify("Saiz gambar terlalu besar! Maksimum 1MB sahaja.", "error");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, profilePic: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSave = async () => {
+        // Validasi kata laluan 12 aksara
+        if (formData.password && formData.password.length !== 12) {
+            notify("Kata laluan mestilah tepat 12 aksara!", "error");
+            return;
+        }
+
+        const res = await callAPI('updateProfile', formData);
+        if (res.success) {
+            setUser(formData);
+            localStorage.setItem('ppm_user', JSON.stringify(formData));
+            setIsEditing(false);
+            notify("Profil anda telah berjaya dikemaskini secara menyeluruh!");
+        } else {
+            notify(res.message || "Gagal mengemaskini profil.", "error");
+        }
+    };
+
+    return (
+        <div className="max-w-3xl mx-auto bg-white rounded-[40px] shadow-sm border overflow-hidden animate-in fade-in duration-500">
+            {/* Header Section */}
+            <div className="h-48 bg-gradient-to-r from-indigo-600 to-blue-700 relative">
+                <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 p-2 bg-white rounded-full shadow-2xl">
+                    <div className="w-40 h-40 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden relative group border-4 border-white shadow-inner">
+                        {formData.profilePic ? (
+                            <img src={formData.profilePic} className="w-full h-full object-cover" alt="Profile" />
+                        ) : (
+                            <Icon name="UserCircle" size={100} className="text-slate-300" />
+                        )}
+                        
+                        {isEditing && (
+                            <label className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                <Icon name="Camera" size={28} className="text-white mb-1" />
+                                <span className="text-[10px] text-white font-bold uppercase tracking-tighter">Tukar Foto</span>
+                                <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+                            </label>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="pt-24 pb-12 px-8 md:px-12">
+                {!isEditing ? (
+                    /* VIEW MODE */
+                    <div className="space-y-8">
+                        <div className="text-center">
+                            <h2 className="text-3xl font-black text-slate-800">{user.fullName}</h2>
+                            <p className="text-indigo-600 font-bold uppercase text-sm tracking-widest mt-1">{user.position}</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Username</p>
+                                <p className="font-bold text-slate-700">@{user.username}</p>
+                            </div>
+                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Alamat Emel</p>
+                                <p className="font-bold text-slate-700 truncate">{user.email}</p>
+                            </div>
+                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Kata Laluan</p>
+                                <p className="font-bold text-slate-700 tracking-tighter">••••••••••••</p>
+                            </div>
+                            <div className="p-5 bg-indigo-50 rounded-3xl border border-indigo-100 border-l-4 border-l-indigo-600">
+                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">GPK Penilai</p>
+                                <p className="font-bold text-indigo-700">{user.reportingGpk || 'N/A'}</p>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setIsEditing(true)} 
+                            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all"
+                        >
+                            SUNTING PROFIL PENUH
+                        </button>
+                    </div>
+                ) : (
+                    /* EDIT MODE */
+                    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+                        <div className="flex items-center justify-between border-b pb-4">
+                            <h3 className="text-xl font-black text-slate-800">Kemaskini Maklumat</h3>
+                            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase">@{user.username}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                                <label className="text-xs font-black text-slate-400 uppercase ml-2">Nama Penuh</label>
+                                <input name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-black text-slate-400 uppercase ml-2">Emel</label>
+                                <input name="email" type="email" value={formData.email} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-black text-slate-400 uppercase ml-2">Kata Laluan (12 Aksara)</label>
+                                <input name="password" value={formData.password} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500" maxLength={12} />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-black text-slate-400 uppercase ml-2">Jawatan</label>
+                                <select name="position" value={formData.position} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500">
+                                    <option value="PPM KELAS">PPM KELAS</option>
+                                    <option value="PPM ASRAMA">PPM ASRAMA</option>
+                                    <option value="PPM PRA">PPM PRA</option>
+                                    <option value="GPK">GPK</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-1 md:col-span-2">
+                                <label className="text-xs font-black text-slate-400 uppercase ml-2">GPK Penilai</label>
+                                <select name="reportingGpk" value={formData.reportingGpk} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500">
+                                    <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
+                                    <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
+                                    <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-3 pt-6">
+                            <button onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all">
+                                SIMPAN PERUBAHAN
+                            </button>
+                            <button onClick={() => { setFormData({...user}); setIsEditing(false); }} className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all">
+                                BATAL
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+
+
+            // --- RENDER ---
+
+            if (page === 'landing') return (
+                <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-6 text-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 opacity-50"></div>
+                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 opacity-50"></div>
+                    
+                    <div className="relative z-10 text-center max-w-2xl">
+                        <div className="bg-white/10 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-md border border-white/20">
+                            <Icon name="FileText" size={48} className="text-white" />
+                        </div>
+                        <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter">SISTEM<br/>PPM</h1>
+                        <p className="text-xl md:text-2xl font-medium opacity-80 mb-12">Digitalisasi Laporan Pembantu Pengurusan Murid Sekolah Malaysia.</p>
+                        
+                        <div className="flex flex-col md:flex-row gap-4 justify-center">
+                            <button onClick={() => setPage('login')} className="px-10 py-4 bg-white text-indigo-700 font-black rounded-2xl shadow-2xl shadow-indigo-900/40 hover:scale-105 transition-transform">Log Masuk</button>
+                            <button onClick={() => setPage('signup')} className="px-10 py-4 bg-transparent border-2 border-white/40 text-white font-black rounded-2xl backdrop-blur-sm hover:bg-white/10 transition-colors">Daftar Akaun</button>
+                        </div>
+                    </div>
                 </div>
             );
 
+           if (page === 'login' || page === 'signup' || page === 'forgot') {const isSignup = page === 'signup';const isForgot = page === 'forgot';return (
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row animate-in fade-in duration-500">
+        {/* Bahagian Visual (Kiri) */}
+        <div className="md:w-1/2 bg-indigo-600 p-12 flex flex-col justify-between text-white relative overflow-hidden">
+            <div className="relative z-10">
+                <button onClick={() => { setPage('landing'); setShowPassword(false); }} className="flex items-center text-indigo-200 hover:text-white mb-12 font-bold transition-all">
+                    <Icon name="ArrowLeft" size={18} className="mr-2"/> Kembali
+                </button>
+                <h2 className="text-5xl font-black leading-tight tracking-tighter">
+                    {isSignup ? 'Mulakan Digitalisasi Tugasan Anda.' : isForgot ? 'Set Semula Password Anda.' : 'Selamat Kembali ke PPM System.'}
+                </h2>
+            </div>
+            <p className="relative z-10 text-indigo-100 font-medium opacity-90 max-w-sm">
+                Platform ini membantu anda mengurus laporan harian dan mingguan dengan lebih efisien, sistematik dan pantas.
+            </p>
+            <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-40 -mt-40 blur-[100px]"></div>
+        </div>
+
+        {/* Bahagian Borang (Kanan) */}
+        <div className="md:w-1/2 flex items-center justify-center p-6 md:p-12 overflow-y-auto">
+            <div className="w-full max-w-md bg-white p-8 md:p-10 rounded-[40px] shadow-2xl shadow-indigo-100 border border-slate-100">
+                <h3 className="text-3xl font-black mb-8 text-slate-800 tracking-tight text-center">
+                    {isSignup ? 'Daftar Akaun Baru' : isForgot ? 'Tukar Password' : 'Log Masuk Sistem'}
+                </h3>
+
+                <form 
+                    onSubmit={async (e) => {
+                        e.preventDefault();
+                        const data = Object.fromEntries(new FormData(e.target));
+                        
+                        if (isSignup) {
+                            // Logik Pendaftaran
+                            if (data.password.length !== 12) return notify("Password mesti tepat 12 aksara!", "error");
+                            const res = await callAPI('signup', data);
+                            if (res.success) {
+                                notify("Akaun anda berjaya didaftarkan");
+                                setPage('login');
+                            } else {
+                                notify(res.message, "error");
+                            }
+                        } else if (isForgot) {
+                            // Logik Lupa Password
+                            const res = await callAPI('forgotPassword', data);
+                            if(res.success) { notify(res.message); setPage('login'); } else notify(res.message, 'error');
+                        } else {
+                            // Logik Login dengan Amaran
+                            const res = await callAPI('login', data);
+                            if (res.success) {
+                                if (rememberMe) {
+                                    localStorage.setItem('ppm_remembered_username', data.username);
+                                } else {
+                                    localStorage.removeItem('ppm_remembered_username');
+                                }
+                                setUser(res.user);
+                                localStorage.setItem('ppm_user', JSON.stringify(res.user));
+                                setPage('app');
+                                fetchReports(res.user);
+                            } else {
+                                // AMARAN JIKA GAGAL LOGIN
+                                notify("Amaran: Username atau Password Salah!", "error");
+                            }
+                        }
+                    }} 
+                    className="space-y-4"
+                >
+                    {isSignup && (
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nama Penuh</label>
+                            <input name="fullName" placeholder="Nama Penuh" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required />
+                        </div>
+                    )}
+
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Username {isSignup && '(Unik)'}</label>
+                        <input 
+                            name="username" 
+                            type="text"
+                            defaultValue={(!isSignup && !isForgot) ? savedUsername : ""}
+                            placeholder="Username" 
+                            className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                            required 
+                        />
+                    </div>
+
+                    {isSignup && (
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Alamat Emel</label>
+                            <input name="email" type="email" placeholder="Alamat Emel" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required />
+                        </div>
+                    )}
+
+                    <div className="space-y-1 relative">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">
+                            {isForgot ? 'Password Baru' : 'Password'} {isSignup && '(Mesti 12 Aksara)'}
+                        </label>
+                        <div className="relative">
+                            <input 
+                                name={isForgot ? "newPassword" : "password"} 
+                                type={showPassword ? "text" : "password"} 
+                                placeholder="••••••••••••" 
+                                maxLength={12}
+                                className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                                required 
+                            />
+                            <button 
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors p-2"
+                            >
+                                <Icon name={showPassword ? "Eye" : "Plus"} size={18} className={!showPassword ? "rotate-45" : ""} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {isSignup && (
+                        <>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Jawatan</label>
+                                <select name="position" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required>
+                                    <option value="">Pilih Jawatan</option>
+                                    <option value="PPM KELAS">PPM KELAS</option>
+                                    <option value="PPM ASRAMA">PPM ASRAMA</option>
+                                    <option value="PPM PRA">PPM PRA</option>
+                                    <option value="GPK">GPK</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">GPK Penilai</label>
+                                <select name="reportingGpk" className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                                    <option value="">Pilih GPK Penilai</option>
+                                    <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
+                                    <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
+                                    <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
+                                </select>
+                            </div>
+                        </>
+                    )}
+
+                    {!isSignup && !isForgot && (
+                        <div className="flex items-center px-2 py-2">
+                            <label className="flex items-center cursor-pointer group">
+                                <input type="checkbox" className="sr-only" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}/>
+                                <div className={`w-10 h-6 rounded-full transition-colors ${rememberMe ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${rememberMe ? 'translate-x-4' : ''}`}></div>
+                                <span className="ml-3 text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600">Ingat Saya</span>
+                            </label>
+                        </div>
+                    )}
+
+                    <button 
+                        disabled={loading} 
+                        type="submit" 
+                        className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center transition-all hover:bg-indigo-700 active:scale-95 mt-4 text-xs tracking-widest"
+                    >
+                        {loading ? (
+                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        ) : (isSignup ? 'Daftar Sekarang' : (isForgot ? 'Simpan Password Baru' : 'Masuk Dashboard'))}
+                    </button>
+                    
+                    <div className="flex flex-col gap-3 pt-6 border-t border-slate-50">
+                        {!isSignup && !isForgot && (
+                            <button type="button" onClick={() => { setPage('forgot'); setShowPassword(false); }} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest text-left">Lupa Password?</button>
+                        )}
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {isSignup ? 'Sudah ada akaun?' : (isForgot ? 'Ingat password?' : 'Tiada akaun?')}
+                            <button type="button" onClick={() => { setPage(isSignup || isForgot ? 'login' : 'signup'); setShowPassword(false); }} className="ml-2 text-indigo-600 font-black">{isSignup || isForgot ? 'Log Masuk' : 'Daftar Sekarang'}</button>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+);
+}
+
             if (page === 'app') return (
-                <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row h-screen overflow-hidden">
-                    <aside className="w-full md:w-64 bg-white border-r flex flex-col z-20">
-                        <div className="p-8 font-black text-indigo-700 text-xl border-b tracking-tighter">PPM SYSTEM</div>
-                        <nav className="flex-1 p-4 space-y-2 overflow-y-auto no-scrollbar">
-                            {[
-                                {id: 'dashboard', icon: 'LayoutDashboard', label: 'Dashboard'},
-                                {id: 'jana', icon: 'FileText', label: 'Jana Laporan'},
-                                {id: 'profile', icon: 'User', label: 'Profil Saya'}
-                            ].map(item => (
-                                <button key={item.id} onClick={() => setSubPage(item.id)} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all ${subPage === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-                                    <Icon name={item.icon} /> <span className="font-bold text-sm">{item.label}</span>
-                                </button>
-                            ))}
+                <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row overflow-hidden h-screen">
+                    <aside className="w-full md:w-64 bg-white border-r border-slate-100 flex flex-col z-20">
+                        <div className="p-8 hidden md:block">
+                            <h1 className="text-2xl font-black text-indigo-700 tracking-tighter">PPM SYSTEM</h1>
+                        </div>
+                        <nav className="flex-1 px-4 space-y-2 py-4 no-scrollbar overflow-y-auto">
+                            <SidebarItem id="dashboard" icon="LayoutDashboard" label="Dashboard" />
+                            <SidebarItem id="moment" icon="Camera" label="Moment" />
+                            <SidebarItem id="jana" icon="FileText" label="Jana Laporan" roles={['User', 'Admin']} />
+                            <SidebarItem id="semakan" icon="ClipboardCheck" label="Semakan" roles={['GPK', 'Admin', 'User']} />
+                            <SidebarItem id="profile" icon="UserCircle" label="Profil Saya" />
                         </nav>
-                        <div className="p-4 border-t">
-                            <button onClick={() => { localStorage.removeItem('ppm_user'); setUser(null); setPage('landing'); }} className="w-full flex items-center space-x-3 px-4 py-3 rounded-2xl text-red-500 font-bold hover:bg-red-50">
-                                <Icon name="LogOut" /> <span className="text-sm">Log Keluar</span>
+                        <div className="p-4 border-t border-slate-50">
+                            <button onClick={handleLogout} className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 font-bold transition-colors">
+                                <Icon name="LogOut" size={20} />
+                                <span className="text-sm">Log Keluar</span>
                             </button>
                         </div>
                     </aside>
-                    <main className="flex-1 p-6 md:p-10 overflow-y-auto relative no-scrollbar">
+
+                    <main className="flex-1 overflow-y-auto no-scrollbar relative p-6 md:p-10">
                         {notification && (
-                            <div className={`fixed top-6 right-6 p-4 rounded-2xl shadow-2xl z-[200] border-l-8 flex items-center space-x-3 fade-in ${notification.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-emerald-50 border-emerald-500 text-emerald-700'}`}>
-                                <Icon name={notification.type === 'error' ? 'AlertCircle' : 'CheckCircle'} />
+                            <div className={`fixed top-6 right-6 p-4 rounded-2xl shadow-2xl z-[200] border-l-8 flex items-center space-x-3 transition-all animate-in slide-in-from-right duration-300 ${notification.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-emerald-50 border-emerald-500 text-emerald-700'}`}>
+                                <Icon name={notification.type === 'error' ? 'Plus' : 'CheckCircle'} className={notification.type === 'error' ? 'rotate-45' : ''}/>
                                 <span className="font-bold text-sm">{notification.msg}</span>
                             </div>
                         )}
-                        <div className="max-w-6xl mx-auto">
-                            {subPage === 'dashboard' && <Dashboard reports={reports} />}
-                            {subPage === 'jana' && <JanaLaporan reports={reports} user={user} settings={settings} callAPI={callAPI} setLoading={setLoading} notify={notify} refreshReports={fetchReports} />}
-                            {subPage === 'profile' && <ProfilePage user={user} callAPI={callAPI} setLoading={setLoading} notify={notify} onUpdate={(u) => {setUser(u); localStorage.setItem('ppm_user', JSON.stringify(u));}} />}
+
+                        <header className="flex md:hidden items-center justify-between mb-8">
+                             <h1 className="text-xl font-black text-indigo-700 tracking-tighter">PPM SYSTEM</h1>
+                             <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">{user?.username.substring(0,2).toUpperCase()}</div>
+                        </header>
+
+                        <div className="max-w-6xl mx-auto pb-20">
+                            {subPage === 'dashboard' && <Dashboard />}
+                            {subPage === 'moment' && (
+                                <div className="flex flex-col items-center justify-center h-[70vh] text-slate-300 bg-white rounded-[40px] border-4 border-dashed border-slate-50">
+                                    <Icon name="Camera" size={80} className="mb-6 opacity-20" />
+                                    <p className="text-xl font-black">Moment Akan Datang</p>
+                                    <p className="font-medium text-sm">Abadikan gambar tugasan anda di sini.</p>
+                                </div>
+                            )}
+                            {subPage === 'jana' && <JanaLaporan />}
+                            {subPage === 'semakan' && <SemakanLaporan />}
+                            {subPage === 'profile' && <ProfilePage />}
                         </div>
-                        {loading && <div className="fixed bottom-10 right-10 bg-white p-4 rounded-full shadow-2xl flex items-center border animate-pulse"><Icon name="Loader" className="animate-spin text-indigo-600 mr-2"/> <span className="text-xs font-bold text-slate-500">Memproses...</span></div>}
                     </main>
                 </div>
             );
