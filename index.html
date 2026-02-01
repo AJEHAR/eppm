@@ -759,180 +759,84 @@
                 </div>
             );
 
-if (page === 'login' || page === 'signup' || page === 'forgot') {const isSignup = page === 'signup';const isForgot = page === 'forgot';return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row animate-in fade-in duration-500">
-        {/* Bahagian Visual (Kiri) */}
-        <div className="md:w-1/2 bg-indigo-600 p-12 flex flex-col justify-between text-white relative overflow-hidden">
-            <div className="relative z-10">
-                <button onClick={() => { setPage('landing'); setShowPassword(false); }} className="flex items-center text-indigo-200 hover:text-white mb-12 font-bold transition-all">
-                    <Icon name="ArrowLeft" size={18} className="mr-2"/> Kembali
-                </button>
-                <h2 className="text-5xl font-black leading-tight tracking-tighter">
-                    {isSignup ? 'Mulakan Digitalisasi Tugasan Anda.' : isForgot ? 'Set Semula Password Anda.' : 'Selamat Kembali ke PPM System.'}
-                </h2>
-            </div>
-            <p className="relative z-10 text-indigo-100 font-medium opacity-90 max-w-sm">
-                Platform ini membantu anda mengurus laporan harian dan mingguan dengan lebih efisien, sistematik dan pantas.
-            </p>
-            <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-40 -mt-40 blur-[100px]"></div>
-        </div>
+if (page === 'login' || page === 'signup' || page === 'forgot') {
+                const isSignup = page === 'signup';
+                const isForgot = page === 'forgot';
 
-        {/* Bahagian Borang (Kanan) */}
-        <div className="md:w-1/2 flex items-center justify-center p-6 md:p-12 overflow-y-auto">
-            <div className="w-full max-w-md bg-white p-8 md:p-10 rounded-[40px] shadow-2xl shadow-indigo-100 border border-slate-100">
-                <h3 className="text-3xl font-black mb-8 text-slate-800 tracking-tight text-center">
-                    {isSignup ? 'Daftar Akaun Baru' : isForgot ? 'Tukar Password' : 'Log Masuk Sistem'}
-                </h3>
-
-                <form 
-                    onSubmit={async (e) => {
-                        e.preventDefault();
-                        const data = Object.fromEntries(new FormData(e.target));
-                        
-                        if (isSignup) {
-                            // Logik Pendaftaran
-                            if (data.password.length !== 12) return notify("Password mesti tepat 12 aksara!", "error");
-                            const res = await callAPI('signup', data);
-                            if (res.success) {
-                                notify("Akaun anda berjaya didaftarkan");
-                                setPage('login');
-                            } else {
-                                notify(res.message, "error");
-                            }
-                        } else if (isForgot) {
-                            // Logik Lupa Password
-                            const res = await callAPI('forgotPassword', data);
-                            if(res.success) { notify(res.message); setPage('login'); } else notify(res.message, 'error');
-                        } else {
-                            // Logik Login dengan Amaran
-                            const res = await callAPI('login', data);
-                            if (res.success) {
-                                if (rememberMe) {
-                                    localStorage.setItem('ppm_remembered_username', data.username);
-                                } else {
-                                    localStorage.removeItem('ppm_remembered_username');
-                                }
-                                setUser(res.user);
-                                localStorage.setItem('ppm_user', JSON.stringify(res.user));
-                                setPage('app');
-                                fetchReports(res.user);
-                            } else {
-                                // AMARAN JIKA GAGAL LOGIN
-                                notify("Amaran: Username atau Password Salah!", "error");
-                            }
-                        }
-                    }} 
-                    className="space-y-4"
-                >
-                    {isSignup && (
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nama Penuh</label>
-                            <input name="fullName" placeholder="Nama Penuh" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required />
-                        </div>
-                    )}
-
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Username {isSignup && '(Unik)'}</label>
-                        <input 
-                            name="username" 
-                            type="text"
-                            defaultValue={(!isSignup && !isForgot) ? savedUsername : ""}
-                            placeholder="Username" 
-                            className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
-                            required 
-                        />
-                    </div>
-
-                    {isSignup && (
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Alamat Emel</label>
-                            <input name="email" type="email" placeholder="Alamat Emel" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required />
-                        </div>
-                    )}
-
-                    <div className="space-y-1 relative">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">
-                            {isForgot ? 'Password Baru' : 'Password'} {isSignup && '(Mesti 12 Aksara)'}
-                        </label>
-                        <div className="relative">
-                            <input 
-                                name={isForgot ? "newPassword" : "password"} 
-                                type={showPassword ? "text" : "password"} 
-                                placeholder="••••••••••••" 
-                                maxLength={12}
-                                className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
-                                required 
-                            />
-                            <button 
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors p-2"
-                            >
-                                <Icon name={showPassword ? "Eye" : "Plus"} size={18} className={!showPassword ? "rotate-45" : ""} />
+                return (
+                    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row animate-in fade-in duration-500">
+                        <div className="md:w-1/2 bg-indigo-600 p-12 flex flex-col justify-between text-white relative">
+                            <button onClick={() => setPage('landing')} className="flex items-center text-indigo-200 hover:text-white mb-12 font-bold">
+                                <Icon name="ArrowLeft" size={18} className="mr-2"/> Kembali
                             </button>
+                            <h2 className="text-5xl font-black leading-tight">
+                                {isSignup ? 'Mulakan Digitalisasi Tugasan Anda.' : isForgot ? 'Set Semula Password.' : 'Selamat Kembali ke PPM System.'}
+                            </h2>
+                            <p className="mt-8 opacity-80">Platform bersepadu untuk pengurusan laporan harian yang lebih pantas.</p>
+                        </div>
+
+                        <div className="md:w-1/2 flex items-center justify-center p-8">
+                            <div className="w-full max-w-md bg-white p-10 rounded-[40px] shadow-2xl border border-slate-100">
+                                <h3 className="text-2xl font-black mb-8 text-center">{isSignup ? 'Daftar Akaun' : isForgot ? 'Tukar Password' : 'Log Masuk'}</h3>
+                                
+                                <form onSubmit={isSignup ? handleSignup : (isForgot ? null : handleLogin)} className="space-y-4">
+                                    {isSignup && (
+                                        <input name="fullName" placeholder="Nama Penuh" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                    )}
+
+                                    <input name="username" defaultValue={(!isSignup && !isForgot) ? savedUsername : ""} placeholder="Username" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+
+                                    {isSignup && (
+                                        <input name="email" type="email" placeholder="Alamat Emel" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                    )}
+
+                                    <div className="relative">
+                                        <input name="password" type={showPassword ? "text" : "password"} placeholder="Password" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <Icon name={showPassword ? "Eye" : "Plus"} size={18} className={!showPassword ? "rotate-45" : ""} />
+                                        </button>
+                                    </div>
+
+                                    {isSignup && (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <select name="position" className="p-4 bg-slate-50 rounded-2xl" required>
+                                                <option value="">Jawatan</option>
+                                                <option value="PPM KELAS">PPM KELAS</option>
+                                                <option value="PPM ASRAMA">PPM ASRAMA</option>
+                                                <option value="PPM PRA">PPM PRA</option>
+                                                <option value="GPK">GPK</option>
+                                            </select>
+                                            <select name="reportingGpk" className="p-4 bg-slate-50 rounded-2xl" required>
+                                                <option value="">GPK Penilai</option>
+                                                <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
+                                                <option value="GPK HAL EHWAL MURID">GPK HEM</option>
+                                                <option value="GPK KOKURIKULUM">GPK KOKO</option>
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {!isSignup && !isForgot && (
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="rounded" />
+                                            <span className="text-xs font-bold text-slate-400 uppercase">Ingat Saya</span>
+                                        </label>
+                                    )}
+
+                                    <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-700">
+                                        {loading ? "Sila Tunggu..." : (isSignup ? "Daftar" : "Masuk")}
+                                    </button>
+
+                                    <div className="flex flex-col gap-2 pt-4 text-center">
+                                        <button type="button" onClick={() => setPage(isSignup ? 'login' : 'signup')} className="text-xs font-bold text-indigo-600">
+                                            {isSignup ? "Dah ada akaun? Log Masuk" : "Belum ada akaun? Daftar Sekarang"}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
-
-                    {isSignup && (
-                        <>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Jawatan</label>
-                                <select name="position" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required>
-                                    <option value="">Pilih Jawatan</option>
-                                    <option value="PPM KELAS">PPM KELAS</option>
-                                    <option value="PPM ASRAMA">PPM ASRAMA</option>
-                                    <option value="PPM PRA">PPM PRA</option>
-                                    <option value="GPK">GPK</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">GPK Penilai</label>
-                                <select name="reportingGpk" className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500 outline-none" required>
-                                    <option value="">Pilih GPK Penilai</option>
-                                    <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
-                                    <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
-                                    <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
-                                </select>
-                            </div>
-                        </>
-                    )}
-
-                    {!isSignup && !isForgot && (
-                        <div className="flex items-center px-2 py-2">
-                            <label className="flex items-center cursor-pointer group">
-                                <input type="checkbox" className="sr-only" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}/>
-                                <div className={`w-10 h-6 rounded-full transition-colors ${rememberMe ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${rememberMe ? 'translate-x-4' : ''}`}></div>
-                                <span className="ml-3 text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600">Ingat Saya</span>
-                            </label>
-                        </div>
-                    )}
-
-                    <button 
-                        disabled={loading} 
-                        type="submit" 
-                        className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center transition-all hover:bg-indigo-700 active:scale-95 mt-4 text-xs tracking-widest"
-                    >
-                        {loading ? (
-                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                        ) : (isSignup ? 'Daftar Sekarang' : (isForgot ? 'Simpan Password Baru' : 'Masuk Dashboard'))}
-                    </button>
-                    
-                    <div className="flex flex-col gap-3 pt-6 border-t border-slate-50">
-                        {!isSignup && !isForgot && (
-                            <button type="button" onClick={() => { setPage('forgot'); setShowPassword(false); }} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest text-left">Lupa Password?</button>
-                        )}
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {isSignup ? 'Sudah ada akaun?' : (isForgot ? 'Ingat password?' : 'Tiada akaun?')}
-                            <button type="button" onClick={() => { setPage(isSignup || isForgot ? 'login' : 'signup'); setShowPassword(false); }} className="ml-2 text-indigo-600 font-black">{isSignup || isForgot ? 'Log Masuk' : 'Daftar Sekarang'}</button>
-                        </p>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-);
-}
+                );
+            }
             if (page === 'app') return (
                 <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row overflow-hidden h-screen">
                     <aside className="w-full md:w-64 bg-white border-r border-slate-100 flex flex-col z-20">
