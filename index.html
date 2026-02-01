@@ -137,7 +137,7 @@
                     setPage('app');
                     fetchReports(res.user);
                 } else {
-                    notify(res.message, "error");
+                    notify("Amaran: Username atau Password Salah!", "error");
                 }
             };
 
@@ -304,6 +304,10 @@
                         setShowLogForm(false);
                     }
                 };
+
+                const [rememberMe, setRememberMe] = useState(false);
+                const [savedUsername, setSavedUsername] = useState("");
+                const [showPassword, setShowPassword] = useState(false);
 
                 const confirmSubmit = async (id) => {
                     if (window.confirm("Adakah anda pasti? Laporan tidak boleh diubah selepas dihantar.")) {
@@ -759,7 +763,9 @@
                 </div>
             );
 
-if (page === 'login' || page === 'signup' || page === 'forgot') {
+
+                                        
+                if (page === 'login' || page === 'signup' || page === 'forgot') {
                 const isSignup = page === 'signup';
                 const isForgot = page === 'forgot';
 
