@@ -80,6 +80,7 @@
             const [reports, setReports] = useState([]);
             const [settings, setSettings] = useState({ locations: ["Kelas", "Asrama", "Padang", "Dewan", "Kantin"], gpks: [] });
             const [notification, setNotification] = useState(null);
+            const [showPassword, setShowPassword] = useState(false);
 
             useEffect(() => {
                 const saved = localStorage.getItem('ppm_user');
@@ -141,21 +142,28 @@
             };
 
             const handleSignup = async (e) => {
-                e.preventDefault();
-                const data = Object.fromEntries(new FormData(e.target));
-                if (data.password.length !== 12) return notify("Password mesti tepat 12 aksara!", "error");
-                
-                data.role = data.position === 'GPK' ? 'GPK' : 'User';
-                if (data.username === 'admin') data.role = 'Admin';
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    
+    // Validasi kata laluan 12 aksara
+    if (data.password.length !== 12) {
+        return notify("Password mesti tepat 12 aksara!", "error");
+    }
+    
+    // Tentukan peranan
+    data.role = data.position === 'GPK' ? 'GPK' : 'User';
+    if (data.username === 'admin') data.role = 'Admin';
 
-                const res = await callAPI('signup', data);
-                if (res.success) {
-                    notify("Pendaftaran berjaya! Sila login.");
-                    setPage('login');
-                } else {
-                    notify(res.message, "error");
-                }
-            };
+    const res = await callAPI('signup', data);
+    if (res.success) {
+        // Notifikasi spesifik seperti diminta
+        notify("Akaun anda berjaya didaftarkan");
+        // Bawa ke halaman login
+        setPage('login');
+    } else {
+        notify(res.message, "error");
+    }
+};
 
             const handleLogout = () => {
                 localStorage.removeItem('ppm_user');
@@ -751,71 +759,198 @@
                 </div>
             );
 
-            if (page === 'login' || page === 'signup' || page === 'forgot') {
-                const isSignup = page === 'signup';
-                const isForgot = page === 'forgot';
-                return (
-                    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-                        <div className="md:w-1/2 bg-indigo-600 p-12 flex flex-col justify-between text-white relative overflow-hidden">
-                            <div className="relative z-10">
-                                <button onClick={() => setPage('landing')} className="flex items-center text-indigo-200 hover:text-white mb-12 font-bold"><Icon name="ArrowLeft" size={18} className="mr-2"/> Kembali</button>
-                                <h2 className="text-5xl font-black leading-tight">{isSignup ? 'Mulakan Digitalisasi Tugasan Anda.' : isForgot ? 'Set Semula Password Anda.' : 'Selamat Kembali ke PPM System.'}</h2>
+            // Sila kemaskini bahagian render (if page === 'login' || page === 'signup' || page === 'forgot') dengan kod lengkap di bawah:
+
+if (page === 'login' || page === 'signup' || page === 'forgot') {
+    const isSignup = page === 'signup';
+    const isForgot = page === 'forgot';
+
+    return (
+        <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row animate-in fade-in duration-500">
+            {/* Bahagian Visual (Kiri) */}
+            <div className="md:w-1/2 bg-indigo-600 p-12 flex flex-col justify-between text-white relative overflow-hidden">
+                <div className="relative z-10">
+                    <button onClick={() => { setPage('landing'); setShowPassword(false); }} className="flex items-center text-indigo-200 hover:text-white mb-12 font-bold transition-all">
+                        <Icon name="ArrowLeft" size={18} className="mr-2"/> Kembali
+                    </button>
+                    <h2 className="text-5xl font-black leading-tight tracking-tighter">
+                        {isSignup ? 'Mulakan Digitalisasi Tugasan Anda.' : isForgot ? 'Set Semula Password Anda.' : 'Selamat Kembali ke PPM System.'}
+                    </h2>
+                </div>
+                <p className="relative z-10 text-indigo-100 font-medium opacity-90 max-w-sm">
+                    Platform ini membantu anda mengurus laporan harian dan mingguan dengan lebih efisien, sistematik dan pantas.
+                </p>
+                <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-40 -mt-40 blur-[100px]"></div>
+            </div>
+
+            {/* Bahagian Borang (Kanan) */}
+            <div className="md:w-1/2 flex items-center justify-center p-6 md:p-12 overflow-y-auto">
+                <div className="w-full max-w-md bg-white p-8 md:p-10 rounded-[40px] shadow-2xl shadow-indigo-100 border border-slate-100">
+                    <h3 className="text-3xl font-black mb-8 text-slate-800 tracking-tight">
+                        {isSignup ? 'Daftar Akaun Baru' : isForgot ? 'Tukar Password' : 'Log Masuk Sistem'}
+                    </h3>
+
+                    {/* Login Form / Signup Form / Forgot Password Form */}
+                    <form 
+                        onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (isSignup) {
+                                await handleSignup(e);
+                            } else if (isForgot) {
+                                const res = await callAPI('forgotPassword', Object.fromEntries(new FormData(e.target)));
+                                if(res.success) { notify(res.message); setPage('login'); } else notify(res.message, 'error');
+                            } else {
+                                const data = Object.fromEntries(new FormData(e.target));
+                                const res = await callAPI('login', data);
+                                if (res.success) {
+                                    if (rememberMe) {
+                                        localStorage.setItem('ppm_remembered_username', data.username);
+                                    } else {
+                                        localStorage.removeItem('ppm_remembered_username');
+                                    }
+                                    setUser(res.user);
+                                    localStorage.setItem('ppm_user', JSON.stringify(res.user));
+                                    setPage('app');
+                                    fetchReports(res.user);
+                                } else {
+                                    // AMARAN JIKA GAGAL LOGIN
+                                    notify("Amaran: Username atau Password Salah!", "error");
+                                }
+                            }
+                        }} 
+                        className="space-y-4"
+                    >
+                        {/* 1. Medan Khusus Signup (Nama Penuh) */}
+                        {isSignup && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nama Penuh</label>
+                                <input name="fullName" placeholder="Nama Penuh" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required />
                             </div>
-                            <p className="relative z-10 text-indigo-200 font-medium">Platform ini membantu anda mengurus laporan harian dan mingguan dengan lebih efisien, sistematik dan pantas.</p>
+                        )}
+
+                        {/* 2. Username (Wujud di semua mode) */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Username {isSignup && '(Unik)'}</label>
+                            <input 
+                                name="username" 
+                                type="text"
+                                defaultValue={(!isSignup && !isForgot) ? savedUsername : ""}
+                                placeholder="Username" 
+                                className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                                required 
+                            />
                         </div>
-                        <div className="md:w-1/2 flex items-center justify-center p-8">
-                            <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-xl border border-slate-100">
-                                <h3 className="text-2xl font-black mb-8">{isSignup ? 'Daftar Akaun Baru' : isForgot ? 'Tukar Password' : 'Log Masuk Sistem'}</h3>
-                                {isSignup ? (
-                                    <form onSubmit={handleSignup} className="space-y-4">
-                                        <input name="fullName" placeholder="Nama Penuh" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <input name="username" placeholder="Username (Unik)" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <input name="email" type="email" placeholder="Alamat Emel" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <input name="password" placeholder="Password (Mesti 12 Aksara)" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <select name="position" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required>
-                                            <option value="">Pilih Jawatan</option>
-                                            <option value="PPM KELAS">PPM KELAS</option>
-                                            <option value="PPM ASRAMA">PPM ASRAMA</option>
-                                            <option value="PPM PRA">PPM PRA</option>
-                                            <option value="GPK">GPK</option>
-                                        </select>
-                                        <select name="reportingGpk" className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-medium" required>
-    <option value="">Pilih GPK Penilai</option>
-    <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
-    <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
-    <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
-</select>
-                                        <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 mt-4">{loading ? 'Memproses...' : 'Daftar Sekarang'}</button>
-                                    </form>
-                                ) : isForgot ? (
-                                    <form onSubmit={async (e) => {
-                                        e.preventDefault();
-                                        const res = await callAPI('forgotPassword', Object.fromEntries(new FormData(e.target)));
-                                        if(res.success) { notify(res.message); setPage('login'); } else notify(res.message, 'error');
-                                    }} className="space-y-4">
-                                        <input name="username" placeholder="Username Anda" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <input name="newPassword" placeholder="Password Baru (12 Aksara)" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 mt-4">{loading ? 'Mengemaskini...' : 'Simpan Password Baru'}</button>
-                                        <button type="button" onClick={() => setPage('login')} className="w-full text-sm font-bold text-slate-400">Kembali ke Login</button>
-                                    </form>
-                                ) : (
-                                    <form onSubmit={handleLogin} className="space-y-5">
-                                        <input name="username" placeholder="Username" className="w-full p-4 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <input name="password" type="password" placeholder="Password" className="w-full p-4 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500" required />
-                                        <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center justify-center">
-                                            {loading ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> : "Masuk ke Dashboard"}
-                                        </button>
-                                        <div className="flex justify-between px-2 pt-2">
-                                            <button type="button" onClick={() => setPage('forgot')} className="text-xs font-bold text-indigo-600">Lupa Password?</button>
-                                            <button type="button" onClick={() => setPage('signup')} className="text-xs font-bold text-slate-400">Daftar Akaun Baru</button>
-                                        </div>
-                                    </form>
-                                )}
+
+                        {/* 3. Medan Khusus Signup (Emel) */}
+                        {isSignup && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Alamat Emel</label>
+                                <input name="email" type="email" placeholder="Alamat Emel" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required />
+                            </div>
+                        )}
+
+                        {/* 4. Password (Dengan Fungsi Toggle Eye) */}
+                        <div className="space-y-1 relative">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">
+                                {isForgot ? 'Password Baru' : 'Password'} {isSignup && '(Mesti 12 Aksara)'}
+                            </label>
+                            <div className="relative">
+                                <input 
+                                    name={isForgot ? "newPassword" : "password"} 
+                                    type={showPassword ? "text" : "password"} 
+                                    placeholder="••••••••••••" 
+                                    className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                                    required 
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors p-2"
+                                >
+                                    <Icon name={showPassword ? "Eye" : "Plus"} size={18} className={!showPassword ? "rotate-45" : ""} />
+                                </button>
                             </div>
                         </div>
-                    </div>
-                );
-            }
+
+                        {/* 5. Medan Khusus Signup (Position & GPK) */}
+                        {isSignup && (
+                            <>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Jawatan</label>
+                                    <select name="position" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required>
+                                        <option value="">Pilih Jawatan</option>
+                                        <option value="PPM KELAS">PPM KELAS</option>
+                                        <option value="PPM ASRAMA">PPM ASRAMA</option>
+                                        <option value="PPM PRA">PPM PRA</option>
+                                        <option value="GPK">GPK</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">GPK Penilai</label>
+                                    <select name="reportingGpk" className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                                        <option value="">Pilih GPK Penilai</option>
+                                        <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
+                                        <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
+                                        <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
+                                    </select>
+                                </div>
+                            </>
+                        )}
+
+                        {/* 6. Remember Me (Login Sahaja) */}
+                        {!isSignup && !isForgot && (
+                            <div className="flex items-center px-2 py-2">
+                                <label className="flex items-center cursor-pointer group">
+                                    <div className="relative">
+                                        <input 
+                                            type="checkbox" 
+                                            className="sr-only" 
+                                            checked={rememberMe}
+                                            onChange={(e) => setRememberMe(e.target.checked)}
+                                        />
+                                        <div className={`w-10 h-6 rounded-full transition-colors ${rememberMe ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                                        <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${rememberMe ? 'translate-x-4' : ''}`}></div>
+                                    </div>
+                                    <span className="ml-3 text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Ingat Saya</span>
+                                </label>
+                            </div>
+                        )}
+
+                        {/* 7. Butang Utama Dinamik */}
+                        <button 
+                            disabled={loading} 
+                            type="submit" 
+                            className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-100 flex items-center justify-center hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-95 transition-all mt-4 uppercase tracking-widest text-xs"
+                        >
+                            {loading ? (
+                                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                            ) : (isSignup ? 'Daftar Sekarang' : (isForgot ? 'Simpan Password Baru' : 'Masuk Dashboard'))}
+                        </button>
+                        
+                        {/* 8. Navigasi Bawah */}
+                        <div className="flex flex-col gap-3 pt-6 border-t border-slate-50">
+                            {!isSignup && !isForgot && (
+                                <button type="button" onClick={() => { setPage('forgot'); setShowPassword(false); }} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors text-left">
+                                    Lupa Password?
+                                </button>
+                            )}
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                {isSignup ? 'Sudah ada akaun?' : (isForgot ? 'Ingat password anda?' : 'Belum ada akaun?')}
+                                <button 
+                                    type="button" 
+                                    onClick={() => { setPage(isSignup || isForgot ? 'login' : 'signup'); setShowPassword(false); }} 
+                                    className="ml-2 text-indigo-600 hover:text-indigo-800 transition-colors font-black"
+                                >
+                                    {isSignup || isForgot ? 'Log Masuk' : 'Daftar Sekarang'}
+                                </button>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+}
 
             if (page === 'app') return (
                 <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row overflow-hidden h-screen">
