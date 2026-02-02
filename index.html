@@ -605,7 +605,10 @@ const AvatarPicker = ({ current, onSelect, onClose }) => (
     useEffect(() => {
         setFormData({ ...user });
     }, [user]);
-
+ const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
     const handleSave = async () => {
         if (formData.password && formData.password.length !== 12) {
             notify("Kata laluan mestilah tepat 12 aksara!", "error");
