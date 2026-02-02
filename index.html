@@ -1304,6 +1304,117 @@ const navigateTo = (id) => {
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+
+        const MomentPage = () => {
+    const [moments, setMoments] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [zoomImage, setZoomImage] = useState(null);
+    const [uploading, setUploading] = useState(false);
+
+    useEffect(() => { loadMoments(); }, []);
+
+    const loadMoments = async () => {
+        const res = await callAPI('getMoments', {});
+        if (res.success) setMoments(res.moments);
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const caption = window.prompt("Masukkan caption/wish untuk gambar ini:");
+        if (caption === null) return;
+
+        setUploading(true);
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const res = await callAPI('uploadMoment', {
+                username: user.username,
+                fullName: user.fullName,
+                caption: caption || "Tiada Caption",
+                imageBase64: reader.result
+            });
+            if (res.success) {
+                notify("Moment berjaya dimuat naik!");
+                loadMoments();
+            }
+            setUploading(false);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm("Hapus moment ini selamanya?")) {
+            const res = await callAPI('deleteMoment', { momentId: id });
+            if (res.success) {
+                notify("Moment telah dipadam.");
+                loadMoments();
+            }
+        }
+    };
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="flex justify-between items-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                <div>
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">PPM Moment</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Kongsikan kenangan tugasan anda</p>
+                </div>
+                <label className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
+                    <Icon name="Camera" size={18} />
+                    {uploading ? 'MEMUAT NAIK...' : 'UPLOAD'}
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
+                </label>
+            </div>
+
+            {/* Pinterest Style Layout */}
+            <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+                {moments.map((m) => (
+                    <div key={m.momentId} className="relative group break-inside-avoid bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl transition-all">
+                        <img 
+                            src={m.imageUrl} 
+                            onClick={() => setZoomImage(m)}
+                            className="w-full h-auto object-cover cursor-zoom-in group-hover:scale-105 transition-transform duration-500" 
+                            loading="lazy"
+                        />
+                        <div className="p-4">
+                            <p className="text-xs font-black text-indigo-600 mb-1">@{m.username}</p>
+                            <p className="text-sm font-medium text-slate-700 leading-snug">{m.caption}</p>
+                            <div className="mt-3 flex justify-between items-center border-t border-slate-50 pt-3">
+                                <span className="text-[9px] font-bold text-slate-300 uppercase">{new Date(m.uploadedAt).toLocaleDateString()}</span>
+                                {(user.username === m.username || user.role === 'Admin') && (
+                                    <button onClick={() => handleDelete(m.momentId)} className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                        <Icon name="Trash2" size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {moments.length === 0 && (
+                <div className="py-20 text-center bg-white rounded-[40px] border-4 border-dashed border-slate-100 text-slate-300 font-black">
+                    TIADA MOMENT LAGI. JADI YANG PERTAMA!
+                </div>
+            )}
+
+            {/* Zoom Modal */}
+            {zoomImage && (
+                <div className="fixed inset-0 bg-slate-900/95 z-[600] flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+                    <button onClick={() => setZoomImage(null)} className="absolute top-6 right-6 p-3 bg-white/10 text-white rounded-full hover:bg-white/20">
+                        <Icon name="X" size={24} />
+                    </button>
+                    <img src={zoomImage.imageUrl} className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
+                    <div className="mt-6 text-center text-white">
+                        <p className="text-xl font-black">{zoomImage.fullName}</p>
+                        <p className="text-indigo-400 font-bold tracking-widest uppercase text-xs mt-1">{zoomImage.caption}</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
     </script>
 </body>
 </html>
