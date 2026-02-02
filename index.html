@@ -288,233 +288,271 @@ const AvatarPicker = ({ current, onSelect, onClose }) => (
                 </div>
             );
 
-            const JanaLaporan = () => {
-                const [view, setView] = useState('list');
-                const [activeReport, setActiveReport] = useState(null);
-                const [showLogForm, setShowLogForm] = useState(false);
+            const JanaLaporan = ({ user, callAPI, notify, fetchReports, settings, reports }) => {
+    const [view, setView] = useState('list');
+    const [activeReport, setActiveReport] = useState(null);
+    const [showLogForm, setShowLogForm] = useState(false);
+    
+    // State untuk baris tugasan dinamik (Task Cards)
+    const [dynamicTasks, setDynamicTasks] = useState([
+        { m: '', t: '', c: '' },
+        { m: '', t: '', c: '' },
+        { m: '', t: '', c: '' }
+    ]);
 
-                const handleCreateFolder = async (e) => {
-                    e.preventDefault();
-                    const d = Object.fromEntries(new FormData(e.target));
-                    const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
-                    if (res.success) {
-                        notify("Folder mingguan berjaya dicipta!");
-                        fetchReports(user);
-                        setView('list');
-                    } else notify(res.message, "error");
-                };
+    // Tambah baris baru jika tugasan banyak (macam Gambar 2)
+    const handleAddTaskRow = () => {
+        setDynamicTasks([...dynamicTasks, { m: '', t: '', c: '' }]);
+    };
 
-                const handleAddLog = async (e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.target);
-                    const taskRows = [
-                        { m: fd.get('m1'), t: fd.get('t1'), c: fd.get('c1') },
-                        { m: fd.get('m2'), t: fd.get('t2'), c: fd.get('c2') },
-                        { m: fd.get('m3'), t: fd.get('t3'), c: fd.get('c3') },
-                    ];
-                    const payload = {
-                        reportId: activeReport.reportId,
-                        userId: user.uid,
-                        date: fd.get('date'),
-                        day: new Date(fd.get('date')).toLocaleDateString('ms-MY', { weekday: 'long' }),
-                        location: fd.get('location'),
-                        attendance: fd.get('attendance'),
-                        startTime: fd.get('startTime'),
-                        endTime: fd.get('endTime'),
-                        tasks: taskRows
-                    };
-                    const res = await callAPI('saveDailyLog', payload);
-                    if (res.success) {
-                        notify("Log harian ditambah!");
-                        fetchReports(user);
-                        setShowLogForm(false);
-                    }
-                };
+    const handleRemoveTaskRow = (index) => {
+        if (dynamicTasks.length > 1) {
+            setDynamicTasks(dynamicTasks.filter((_, i) => i !== index));
+        }
+    };
 
-                const confirmSubmit = async (id) => {
-                    if (window.confirm("Adakah anda pasti? Laporan tidak boleh diubah selepas dihantar.")) {
-                        const res = await callAPI('submitReport', { reportId: id });
-                        if (res.success) {
-                            notify("Laporan berjaya dihantar!");
-                            fetchReports(user);
-                        }
-                    }
-                };
+    const handleTaskChange = (index, field, value) => {
+        const newTasks = [...dynamicTasks];
+        newTasks[index][field] = value;
+        setDynamicTasks(newTasks);
+    };
 
-                if (view === 'createFolder') return (
-                    <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100 mt-10">
-                        <h3 className="text-xl font-black mb-6 flex items-center"><Icon name="Plus" className="mr-2 text-indigo-600"/> Cipta Tapak Minggu</h3>
-                        <form onSubmit={handleCreateFolder} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Tahun</label>
-                                <input name="year" type="number" defaultValue={new Date().getFullYear()} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" required />
+    const handleAddLog = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const dateVal = fd.get('date');
+        
+        const payload = {
+            reportId: activeReport.reportId,
+            userId: user.uid,
+            date: dateVal,
+            day: new Date(dateVal).toLocaleDateString('ms-MY', { weekday: 'long' }), // Auto-detect Hari
+            location: fd.get('location'),
+            attendance: fd.get('attendance'),
+            startTime: fd.get('startTime'),
+            endTime: fd.get('endTime'),
+            tasks: dynamicTasks
+        };
+        
+        const res = await callAPI('saveDailyLog', payload);
+        if (res.success) {
+            notify("Log harian berjaya disimpan!");
+            fetchReports(user);
+            setShowLogForm(false);
+            setDynamicTasks([{ m: '', t: '', c: '' }, { m: '', t: '', c: '' }, { m: '', t: '', c: '' }]);
+        }
+    };
+
+    // UI Render logic (Cipta Folder Baru)
+    if (view === 'createFolder') return (
+        <div className="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-xl border mt-10">
+            <h3 className="text-xl font-black mb-6">Cipta Tapak Minggu</h3>
+            <form onSubmit={async (e) => {
+                e.preventDefault();
+                const d = Object.fromEntries(new FormData(e.target));
+                const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
+                if (res.success) { 
+                    fetchReports(user); 
+                    setView('list'); 
+                    notify("Folder mingguan berjaya dicipta!"); 
+                }
+            }} className="space-y-4">
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Tahun</label>
+                    <input name="year" type="number" defaultValue={new Date().getFullYear()} className="w-full p-4 bg-slate-50 rounded-2xl border-0 focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Minggu</label>
+                    <select name="weekNum" className="w-full p-4 bg-slate-50 rounded-2xl border-0 focus:ring-2 focus:ring-indigo-500">
+                        {[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+                    </select>
+                </div>
+                <div className="flex gap-2 pt-4">
+                    <button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold">Cipta</button>
+                    <button type="button" onClick={() => setView('list')} className="flex-1 bg-slate-100 py-4 rounded-2xl font-bold">Batal</button>
+                </div>
+            </form>
+        </div>
+    );
+
+    // UI Render logic (Paparan Log dalam Folder)
+    if (view === 'view' && activeReport) return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <button onClick={() => setView('list')} className="flex items-center text-sm font-bold text-indigo-600 w-max bg-indigo-50 px-4 py-2 rounded-xl">
+                    <Icon name="ArrowLeft" size={16} className="mr-2" /> Kembali
+                </button>
+                <h2 className="text-xl font-black text-center">Minggu {activeReport.weekNum} ({activeReport.year})</h2>
+                {activeReport.status === 'Draft' && (
+                    <button onClick={() => setShowLogForm(true)} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-sm font-bold flex items-center justify-center shadow-lg shadow-indigo-100">
+                        <Icon name="Plus" size={16} className="mr-2"/> Tambah Log Harian
+                    </button>
+                )}
+            </div>
+
+            {/* Modal Tambah Log (Mobile Optimized) */}
+            {showLogForm && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-0 md:p-4">
+                    <div className="bg-white w-full max-w-4xl h-full md:h-auto md:max-h-[90vh] md:rounded-[40px] shadow-2xl overflow-hidden flex flex-col">
+                        <div className="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
+                            <h3 className="font-black text-lg">Input Log Harian</h3>
+                            <button onClick={() => setShowLogForm(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors"><Icon name="X" size={24} /></button>
+                        </div>
+                        <form onSubmit={handleAddLog} className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar bg-slate-50">
+                            <div className="bg-white p-6 rounded-3xl border shadow-sm grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tarikh</label>
+                                    <input name="date" type="date" className="w-full p-3 bg-slate-50 rounded-xl text-sm font-bold border-0 focus:ring-2 focus:ring-indigo-500" required />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lokasi</label>
+                                    <select name="location" className="w-full p-3 bg-slate-50 rounded-xl text-sm font-bold border-0 focus:ring-2 focus:ring-indigo-500">
+                                        {settings?.locations?.map(l => <option key={l} value={l}>{l}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bil. Hadir</label>
+                                    <input name="attendance" type="number" className="w-full p-3 bg-slate-50 rounded-xl text-sm font-bold border-0 focus:ring-2 focus:ring-indigo-500" required />
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="flex-1 space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mula</label>
+                                        <input name="startTime" type="time" className="w-full p-3 bg-slate-50 rounded-xl text-sm font-bold border-0 focus:ring-2 focus:ring-indigo-500" required />
+                                    </div>
+                                    <div className="flex-1 space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tamat</label>
+                                        <input name="endTime" type="time" className="w-full p-3 bg-slate-50 rounded-xl text-sm font-bold border-0 focus:ring-2 focus:ring-indigo-500" required />
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minggu</label>
-                                <select name="weekNum" className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
-                                </select>
+
+                            {/* Task Cards - Mesra Phone */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-2">
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Perihal Tugasan (Task Card)</label>
+                                    <button type="button" onClick={handleAddTaskRow} className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full hover:bg-indigo-100 transition-all">
+                                        + TAMBAH BARIS
+                                    </button>
+                                </div>
+                                {dynamicTasks.map((task, index) => (
+                                    <div key={index} className="bg-white p-5 rounded-3xl border shadow-sm relative group animate-in slide-in-from-right-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                            <div className="md:col-span-2 space-y-1">
+                                                <label className="text-[9px] font-black text-slate-300 uppercase">Waktu</label>
+                                                <input placeholder="6.50 pagi" value={task.m} onChange={(e) => handleTaskChange(index, 'm', e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-0 focus:ring-1 focus:ring-indigo-400" />
+                                            </div>
+                                            <div className="md:col-span-6 space-y-1">
+                                                <label className="text-[9px] font-black text-slate-300 uppercase">Tugasan (Detail)</label>
+                                                <textarea placeholder="Membantu guru membimbing..." rows="2" value={task.t} onChange={(e) => handleTaskChange(index, 't', e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl text-xs font-medium border-0 focus:ring-1 focus:ring-indigo-400 no-scrollbar" />
+                                            </div>
+                                            <div className="md:col-span-4 space-y-1 flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className="text-[9px] font-black text-slate-300 uppercase">Catatan</label>
+                                                    <textarea placeholder="Bil. murid 3/5" rows="2" value={task.c} onChange={(e) => handleTaskChange(index, 'c', e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl text-xs font-medium border-0 focus:ring-1 focus:ring-indigo-400 no-scrollbar" />
+                                                </div>
+                                                {dynamicTasks.length > 1 && (
+                                                    <button type="button" onClick={() => handleRemoveTaskRow(index)} className="mt-5 p-2 text-red-400 hover:text-red-600 transition-colors"><Icon name="X" size={20}/></button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="flex gap-2 pt-4">
-                                <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100">Cipta</button>
-                                <button type="button" onClick={() => setView('list')} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold">Batal</button>
-                            </div>
+                            <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-[24px] font-black shadow-xl shadow-indigo-100 uppercase text-xs tracking-widest hover:bg-indigo-700 transition-all">
+                                SIMPAN LOG HARIAN
+                            </button>
                         </form>
                     </div>
-                );
+                </div>
+            )}
 
-                if (view === 'view' && activeReport) return (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <button onClick={() => setView('list')} className="flex items-center text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-lg">
-                                <Icon name="ArrowLeft" size={16} className="mr-2" /> Kembali ke Senarai
-                            </button>
-                            <h2 className="text-xl font-black">Minggu {activeReport.weekNum} ({activeReport.year})</h2>
-                            {activeReport.status === 'Draft' && (
-                                <button onClick={() => setShowLogForm(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center">
-                                    <Icon name="Plus" size={16} className="mr-2"/> Tambah Log Harian
-                                </button>
-                            )}
+            {/* List Logs Render */}
+            <div className="space-y-4">
+                {activeReport.logs?.map((log, idx) => (
+                    <div key={idx} className="bg-white p-6 rounded-3xl border shadow-sm border-l-8 border-l-indigo-500">
+                         <div className="flex flex-wrap gap-6 border-b pb-4 mb-4">
+                            <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tarikh & Hari</p><p className="font-bold text-slate-700">{new Date(log.date).toLocaleDateString('ms-MY')} ({log.day})</p></div>
+                            <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lokasi</p><p className="font-bold text-slate-700">{log.location}</p></div>
+                            <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Masa Kerja</p><p className="font-bold text-slate-700">{log.startTime} - {log.endTime}</p></div>
                         </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                                <tbody className="divide-y divide-slate-50">
+                                    {log.tasks?.map((t, ti) => (
+                                        <tr key={ti} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="py-3 pr-4 font-bold text-indigo-600 align-top w-20">{t.m}</td>
+                                            <td className="py-3 pr-4 font-medium text-slate-700 align-top whitespace-pre-wrap leading-relaxed">{t.t}</td>
+                                            <td className="py-3 text-slate-500 italic align-top w-32">{t.c}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ))}
+                {(!activeReport.logs || activeReport.logs.length === 0) && (
+                    <div className="p-20 text-center bg-slate-100/50 rounded-[40px] border-4 border-dashed border-white text-slate-400 font-bold">
+                        Tiada log harian ditemui. Sila tambah log baru.
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 
-                        {showLogForm && (
-                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                                <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-                                    <div className="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
-                                        <h3 className="font-bold text-lg">Tambah Laporan Harian</h3>
-                                        <button onClick={() => setShowLogForm(false)} className="hover:rotate-90 transition-transform"><Icon name="Plus" className="rotate-45"/></button>
-                                    </div>
-                                    <form onSubmit={handleAddLog} className="p-8 space-y-6 overflow-y-auto no-scrollbar">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase">Tarikh</label>
-                                                <input name="date" type="date" className="w-full p-2.5 border rounded-xl" required />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase">Lokasi</label>
-                                                <select name="location" className="w-full p-2.5 border rounded-xl">
-                                                    {settings.locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase">Kehadiran Murid</label>
-                                                <input name="attendance" type="number" className="w-full p-2.5 border rounded-xl" required />
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <div className="flex-1">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase">Masuk</label>
-                                                    <input name="startTime" type="time" className="w-full p-2.5 border rounded-xl" required />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase">Keluar</label>
-                                                    <input name="endTime" type="time" className="w-full p-2.5 border rounded-xl" required />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <label className="text-xs font-bold text-slate-400 uppercase">Perihal Laporan (3 Tugasan Utama)</label>
-                                            {[1,2,3].map(i => (
-                                                <div key={i} className="grid grid-cols-12 gap-2">
-                                                    <input name={`m${i}`} placeholder="Masa" className="col-span-2 p-2 border rounded-lg text-xs" />
-                                                    <input name={`t${i}`} placeholder="Tugasan" className="col-span-5 p-2 border rounded-lg text-xs" />
-                                                    <input name={`c${i}`} placeholder="Catatan" className="col-span-5 p-2 border rounded-lg text-xs" />
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold">Simpan Log</button>
-                                    </form>
+    // List View (Utama)
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center px-2">
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Janaan Laporan Mingguan</h3>
+                {user.role === 'User' && (
+                    <button onClick={() => setView('createFolder')} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:-translate-y-1 transition-all">
+                        + CIPTA FOLDER
+                    </button>
+                )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reports?.map((r) => (
+                    <div key={r.reportId} className="bg-white rounded-[32px] shadow-sm border overflow-hidden border-t-8 border-t-indigo-500 hover:shadow-xl transition-all group">
+                        <div className="p-8">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h4 className="text-3xl font-black text-slate-800 tracking-tighter">M-{r.weekNum}</h4>
+                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sesi {r.year}</p>
                                 </div>
+                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                    r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
+                                    r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                    {r.status}
+                                </span>
                             </div>
-                        )}
-
-                        <div className="space-y-4">
-                            {activeReport.logs?.map((log, idx) => (
-                                <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                                    <div className="flex justify-between border-b pb-4 mb-4">
-                                        <div className="flex gap-4">
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Tarikh</p><p className="font-bold text-slate-700">{new Date(log.date).toLocaleDateString()} ({log.day})</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Lokasi</p><p className="font-bold text-slate-700">{log.location}</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Hadir</p><p className="font-bold text-slate-700">{log.attendance} Orang</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Masa</p><p className="font-bold text-slate-700">{log.startTime} - {log.endTime}</p></div>
-                                        </div>
-                                    </div>
-                                    <table className="w-full text-xs text-left border-collapse">
-                                        <thead>
-                                            <tr className="bg-slate-50 text-slate-500 uppercase font-bold">
-                                                <th className="p-2 border">Masa</th>
-                                                <th className="p-2 border">Tugasan</th>
-                                                <th className="p-2 border">Catatan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {log.tasks?.map((t, ti) => (
-                                                <tr key={ti}>
-                                                    <td className="p-2 border">{t.m || '-'}</td>
-                                                    <td className="p-2 border font-medium">{t.t || '-'}</td>
-                                                    <td className="p-2 border text-slate-500 italic">{t.c || '-'}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ))}
-                            {activeReport.logs?.length === 0 && <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium">Tiada log harian ditemui. Klik butang tambah di atas.</div>}
+                            <div className="grid grid-cols-2 gap-3 mt-8">
+                                <button onClick={() => {setActiveReport(r); setView('view');}} className="py-3.5 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-colors">Lihat Log</button>
+                                {r.status === 'Draft' && user.role === 'User' && (
+                                    <button 
+                                        onClick={() => { 
+                                            if(window.confirm("Adakah anda pasti mahu hantar laporan ini?")) {
+                                                callAPI('submitReport', {reportId: r.reportId}).then(() => fetchReports(user));
+                                            }
+                                        }} 
+                                        className="py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+                                    >
+                                        Hantar
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
-                );
-
-                return (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
-                            {user.role === 'User' && (
-                                <button onClick={() => setView('createFolder')} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg shadow-indigo-100 hover:-translate-y-1 transition-transform">
-                                    <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {reports.map((r) => (
-                                <div key={r.reportId} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500">
-                                    <div className="p-6">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <h4 className="text-2xl font-black text-slate-800">Minggu {r.weekNum}</h4>
-                                                <p className="text-sm font-medium text-slate-400 italic">Sesi {r.year}</p>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                                r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
-                                                r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
-                                            }`}>
-                                                {r.status}
-                                            </span>
-                                        </div>
-                                        <div className="space-y-3 pt-4 border-t border-slate-50">
-                                            <div className="flex items-center text-slate-500 text-xs font-medium">
-                                                <Icon name="Calendar" size={14} className="mr-2 text-indigo-400" /> ID: {r.reportId}
-                                            </div>
-                                            {r.submittedAt && (
-                                                <div className="flex items-center text-slate-500 text-xs font-medium">
-                                                    <Icon name="Clock" size={14} className="mr-2 text-indigo-400" /> Hantar: {new Date(r.submittedAt).toLocaleString()}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 mt-6">
-                                            <button onClick={() => {setActiveReport(r); setView('view');}} className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors">Lihat Log</button>
-                                            {r.status === 'Draft' && user.role === 'User' && (
-                                                <button onClick={() => confirmSubmit(r.reportId)} className="py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors">Hantar</button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                ))}
+                {(!reports || reports.length === 0) && (
+                    <div className="col-span-full p-20 text-center bg-white rounded-[40px] border border-slate-100 text-slate-300 font-bold italic">
+                        Tiada rekod laporan ditemui.
                     </div>
-                );
-            };
+                )}
+            </div>
+        </div>
+    );
+};
 
             const SemakanLaporan = () => {
                 const [filterWeek, setFilterWeek] = useState('All');
