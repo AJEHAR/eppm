@@ -98,8 +98,6 @@
             const [showPassword, setShowPassword] = useState(false);
             const [rememberMe, setRememberMe] = useState(false);
             const [savedUsername, setSavedUsername] = useState("");
-            const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-            const [users, setUsers] = useState([]);
 
             useEffect(() => {
                 const saved = localStorage.getItem('ppm_user');
@@ -135,37 +133,15 @@
                 }
             };
 
-            useEffect(() => {
-    if (user && (user.role === 'GPK' || user.role === 'Admin')) {
-        fetchAllUsers();
-    }
-}, [user]);
-
-const fetchAllUsers = async () => {
-    const res = await callAPI('getAllUsers', {});
-    if (res.success) setUsers(res.users);
-};
-
-// 3. Fungsi untuk tutup sidebar bila klik menu (untuk mobile)
-const navigateTo = (id) => {
-    setSubPage(id);
-    setIsSidebarOpen(false);
-};
-
             const fetchInitialData = async () => {
                 const res = await callAPI('getInitialData', {});
                 if (res.success) setSettings(prev => ({ ...prev, ...res }));
             };
 
             const fetchReports = async (currUser) => {
-    const res = await callAPI('getReports', {
-        userId: currUser.uid,
-        role: currUser.role,
-        fullName: currUser.fullName   // <-- tambah ini
-    });
-
-    if (res.success) setReports(res.reports);
-};
+                const res = await callAPI('getReports', { userId: currUser.uid, role: currUser.role });
+                if (res.success) setReports(res.reports);
+            };
 
             // --- AUTH LOGIC ---
             const handleLogin = async (e) => {
@@ -207,19 +183,19 @@ const navigateTo = (id) => {
 
             // --- APP COMPONENTS ---
 
-           const SidebarItem = ({ id, icon, label, roles = [] }) => {
-    if (roles.length > 0 && !roles.includes(user?.role)) return null;
-    const active = subPage === id;
-    return (
-        <button 
-            onClick={() => navigateTo(id)}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
-        >
-            <Icon name={icon} size={20} />
-            <span className="font-semibold text-sm">{label}</span>
-        </button>
-    );
-};
+            const SidebarItem = ({ id, icon, label, roles = [] }) => {
+                if (roles.length > 0 && !roles.includes(user?.role)) return null;
+                const active = subPage === id;
+                return (
+                    <button 
+                        onClick={() => setSubPage(id)}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                    >
+                        <Icon name={icon} size={20} />
+                        <span className="font-semibold text-sm">{label}</span>
+                    </button>
+                );
+            };
 
             const AvatarPicker = ({ current, onSelect, onClose }) => (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
@@ -768,160 +744,84 @@ const navigateTo = (id) => {
             };
 
             const SemakanLaporan = () => {
-    const [filterWeek, setFilterWeek] = useState(new Date().getMonth() * 4 + 1);
-    const [selectedReport, setSelectedReport] = useState(null);
+                const [filterWeek, setFilterWeek] = useState('All');
+                
+                const handleReview = async (id) => {
+                    if (window.confirm("Sahkan laporan ini?")) {
+                        const res = await callAPI('reviewReport', { reportId: id, gpkName: user.fullName });
+                        if (res.success) {
+                            notify("Laporan telah disahkan.");
+                            fetchReports(user);
+                        }
+                    }
+                };
 
-    // Filter reports ikut minggu yang dipilih
-    const weeklyReports = reports.filter(r => r.weekNum == filterWeek);
+                const filtered = filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek);
 
-    // Jika User: Hanya tunjuk senarai laporan mereka sendiri (Sudah ada dalam global reports)
-    // Jika GPK/Admin: Tunjuk semua PPM dari senarai `users`
-    const isAdminView = user.role === 'GPK' || user.role === 'Admin';
+                return (
+                    <div className="space-y-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <h3 className="text-2xl font-black text-slate-800">Semakan Laporan</h3>
+                            <div className="flex items-center space-x-2 bg-white px-4 py-2 border rounded-2xl shadow-sm">
+                                <Icon name="Calendar" size={18} className="text-slate-400" />
+                                <select value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)} className="bg-transparent border-none text-sm font-bold focus:ring-0">
+                                    <option value="All">Semua Minggu</option>
+                                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+                                </select>
+                            </div>
+                        </div>
 
-    const renderReviewRow = (targetUser) => {
-        // Cari jika user ini ada hantar laporan pada minggu tersebut
-        const report = weeklyReports.find(r => r.userId === targetUser.uid || r.userId === targetUser.username);
-        
-        let statusColor = "text-red-500"; // Default: Belum Hantar
-        let statusLabel = "Belum Hantar";
-        
-        if (report) {
-            if (report.status === 'Reviewed') {
-                statusColor = "text-emerald-600";
-                statusLabel = "Selesai Disemak";
-            } else if (report.status === 'Submitted') {
-                statusColor = "text-slate-900";
-                statusLabel = "Menunggu Semakan";
-            }
-        }
-
-        return (
-            <tr key={targetUser.uid} className="hover:bg-slate-50 transition-colors border-b border-slate-50">
-                <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                        <img src={targetUser.profilePic || AVATARS[0]} className="w-10 h-10 rounded-xl bg-indigo-50" />
-                        <div>
-                            <p className="font-black text-slate-700 text-sm uppercase">{targetUser.fullName}</p>
-                            <p className="text-[10px] font-bold text-slate-400">{targetUser.position}</p>
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50/50 border-b border-slate-100">
+                                    <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                        <th className="px-6 py-4">PPM / Pemilik</th>
+                                        <th className="px-6 py-4">Butiran Laporan</th>
+                                        <th className="px-6 py-4">Tarikh Serah</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4 text-center">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {filtered.map(r => (
+                                        <tr key={r.reportId} className="hover:bg-slate-50/30 transition-colors">
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">{r.userId.substring(0,2)}</div>
+                                                    <div><p className="font-bold text-slate-700 text-sm capitalize">{r.userId}</p></div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <p className="font-bold text-slate-800 text-sm">Minggu {r.weekNum}</p>
+                                                <p className="text-[10px] text-slate-400">Tahun {r.year}</p>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <p className="text-xs font-medium text-slate-500">{r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : 'Belum Serah'}</p>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                                                    r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                                                }`}>
+                                                    {r.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center justify-center space-x-2">
+                                                    <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Icon name="Eye" size={20}/></button>
+                                                    {r.status === 'Submitted' && user.role === 'GPK' && (
+                                                        <button onClick={() => handleReview(r.reportId)} className="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-50">Sahkan</button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filtered.length === 0 && <tr><td colSpan="5" className="py-20 text-center text-slate-300 italic">Tiada laporan menunggu semakan</td></tr>}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </td>
-                <td className={`px-6 py-4 text-xs font-black uppercase tracking-widest ${statusColor}`}>
-                    {statusLabel}
-                </td>
-                <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                        {report ? (
-                            <>
-                                <button 
-                                    onClick={() => setSelectedReport(report)}
-                                    className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"
-                                    title="Lihat Laporan"
-                                >
-                                    <Icon name="Eye" size={18}/>
-                                </button>
-                                {isAdminView && report.status === 'Submitted' && (
-                                    <button 
-                                        onClick={async () => {
-                                            if(window.confirm("Sahkan laporan ini?")) {
-                                                const res = await callAPI('reviewReport', { reportId: report.reportId, gpkName: user.fullName });
-                                                if(res.success) { notify("Laporan disahkan!"); fetchReports(user); }
-                                            }
-                                        }}
-                                        className="p-2 bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-600 hover:text-white transition-all"
-                                        title="Sahkan"
-                                    >
-                                        <Icon name="Check" size={18}/>
-                                    </button>
-                                )}
-                            </>
-                        ) : (
-                            <span className="text-[10px] font-bold text-slate-300">TIADA DATA</span>
-                        )}
-                    </div>
-                </td>
-            </tr>
-        );
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h3 className="text-2xl font-black text-slate-800">Semakan Mingguan</h3>
-                <div className="flex items-center bg-white p-2 rounded-2xl shadow-sm border">
-                    <span className="px-3 text-xs font-black text-slate-400 uppercase">Minggu</span>
-                    <select 
-                        value={filterWeek} 
-                        onChange={(e) => setFilterWeek(e.target.value)}
-                        className="bg-indigo-50 border-none rounded-xl text-sm font-black text-indigo-600 focus:ring-0"
-                    >
-                        {[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-                    </select>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50/50">
-                            <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                <th className="px-6 py-4">PPM / Pemilik</th>
-                                <th className="px-6 py-4">Status Laporan</th>
-                                <th className="px-6 py-4 text-center">Tindakan</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isAdminView ? (
-                                users.filter(u => u.role === 'User').map(u => renderReviewRow(u))
-                            ) : (
-                                renderReviewRow(user)
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Modal Paparan Laporan (Semua level boleh tengok) */}
-            {selectedReport && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[500] flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[40px] overflow-hidden flex flex-col shadow-2xl">
-                        <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                            <h3 className="font-black uppercase tracking-widest">Laporan Minggu {selectedReport.weekNum}</h3>
-                            <button onClick={() => setSelectedReport(null)} className="p-2 hover:bg-white/10 rounded-full"><Icon name="X" /></button>
-                        </div>
-                        <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
-                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-3xl">
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase">Pemilik</p><p className="font-bold text-slate-800">{selectedReport.ownerName || selectedReport.userId}</p></div>
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase">Tahun</p><p className="font-bold text-slate-800">{selectedReport.year}</p></div>
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase">Status</p><p className="font-bold text-indigo-600">{selectedReport.status}</p></div>
-                                <div><p className="text-[10px] font-black text-slate-400 uppercase">Tarikh Serah</p><p className="font-bold text-slate-800">{selectedReport.submittedAt ? new Date(selectedReport.submittedAt).toLocaleDateString() : '-'}</p></div>
-                             </div>
-                             
-                             {selectedReport.logs?.map((log, idx) => (
-                                <div key={idx} className="border border-slate-100 rounded-3xl p-6 space-y-4">
-                                    <div className="flex justify-between border-b pb-2">
-                                        <span className="text-xs font-black text-indigo-600 uppercase">{log.day}, {new Date(log.date).toLocaleDateString()}</span>
-                                        <span className="text-xs font-bold text-slate-400">{log.location}</span>
-                                    </div>
-                                    <table className="w-full text-xs">
-                                        <tbody>
-                                            {log.tasks?.map((t, ti) => (
-                                                <tr key={ti} className="border-b border-slate-50">
-                                                    <td className="py-2 w-24 font-bold text-slate-400">{t.m}</td>
-                                                    <td className="py-2 font-medium text-slate-700">{t.t}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                             ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
+                );
+            };
 
             const ProfilePage = ({ user, setUser, callAPI, notify }) => {
                 const [isEditing, setIsEditing] = useState(false);
@@ -1277,7 +1177,7 @@ const navigateTo = (id) => {
 
                         <div className="max-w-6xl mx-auto pb-20">
                             {subPage === 'dashboard' && <Dashboard />}
-                            {subPage === 'momentPage' && (
+                            {subPage === 'moment' && (
                                 <div className="flex flex-col items-center justify-center h-[70vh] text-slate-300 bg-white rounded-[40px] border-4 border-dashed border-slate-50">
                                     <Icon name="Camera" size={80} className="mb-6 opacity-20" />
                                     <p className="text-xl font-black">Moment Akan Datang</p>
@@ -1304,117 +1204,6 @@ const navigateTo = (id) => {
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-
-        const MomentPage = () => {
-    const [moments, setMoments] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [zoomImage, setZoomImage] = useState(null);
-    const [uploading, setUploading] = useState(false);
-
-    useEffect(() => { loadMoments(); }, []);
-
-    const loadMoments = async () => {
-        const res = await callAPI('getMoments', {});
-        if (res.success) setMoments(res.moments);
-    };
-
-    const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const caption = window.prompt("Masukkan caption/wish untuk gambar ini:");
-        if (caption === null) return;
-
-        setUploading(true);
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            const res = await callAPI('uploadMoment', {
-                username: user.username,
-                fullName: user.fullName,
-                caption: caption || "Tiada Caption",
-                imageBase64: reader.result
-            });
-            if (res.success) {
-                notify("Moment berjaya dimuat naik!");
-                loadMoments();
-            }
-            setUploading(false);
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const handleDelete = async (id) => {
-        if (window.confirm("Hapus moment ini selamanya?")) {
-            const res = await callAPI('deleteMoment', { momentId: id });
-            if (res.success) {
-                notify("Moment telah dipadam.");
-                loadMoments();
-            }
-        }
-    };
-
-    return (
-        <div className="space-y-8 animate-in fade-in duration-700">
-            <div className="flex justify-between items-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
-                <div>
-                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">PPM Moment</h2>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Kongsikan kenangan tugasan anda</p>
-                </div>
-                <label className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
-                    <Icon name="Camera" size={18} />
-                    {uploading ? 'MEMUAT NAIK...' : 'UPLOAD'}
-                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
-                </label>
-            </div>
-
-            {/* Pinterest Style Layout */}
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-                {moments.map((m) => (
-                    <div key={m.momentId} className="relative group break-inside-avoid bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl transition-all">
-                        <img 
-                            src={m.imageUrl} 
-                            onClick={() => setZoomImage(m)}
-                            className="w-full h-auto object-cover cursor-zoom-in group-hover:scale-105 transition-transform duration-500" 
-                            loading="lazy"
-                        />
-                        <div className="p-4">
-                            <p className="text-xs font-black text-indigo-600 mb-1">@{m.username}</p>
-                            <p className="text-sm font-medium text-slate-700 leading-snug">{m.caption}</p>
-                            <div className="mt-3 flex justify-between items-center border-t border-slate-50 pt-3">
-                                <span className="text-[9px] font-bold text-slate-300 uppercase">{new Date(m.uploadedAt).toLocaleDateString()}</span>
-                                {(user.username === m.username || user.role === 'Admin') && (
-                                    <button onClick={() => handleDelete(m.momentId)} className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                        <Icon name="Trash2" size={14} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {moments.length === 0 && (
-                <div className="py-20 text-center bg-white rounded-[40px] border-4 border-dashed border-slate-100 text-slate-300 font-black">
-                    TIADA MOMENT LAGI. JADI YANG PERTAMA!
-                </div>
-            )}
-
-            {/* Zoom Modal */}
-            {zoomImage && (
-                <div className="fixed inset-0 bg-slate-900/95 z-[600] flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
-                    <button onClick={() => setZoomImage(null)} className="absolute top-6 right-6 p-3 bg-white/10 text-white rounded-full hover:bg-white/20">
-                        <Icon name="X" size={24} />
-                    </button>
-                    <img src={zoomImage.imageUrl} className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
-                    <div className="mt-6 text-center text-white">
-                        <p className="text-xl font-black">{zoomImage.fullName}</p>
-                        <p className="text-indigo-400 font-bold tracking-widest uppercase text-xs mt-1">{zoomImage.caption}</p>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
     </script>
 </body>
 </html>
