@@ -596,20 +596,24 @@ const AvatarPicker = ({ current, onSelect, onClose }) => (
                 );
             };
 
-         const ProfilePage = ({ user, setUser, callAPI, notify }) => {
+        const ProfilePage = ({ user, setUser, callAPI, notify }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
     const [formData, setFormData] = useState({ ...user });
 
-    // Gunakan useEffect untuk kemaskini formData jika user berubah
+    // Segerakkan data jika props user berubah
     useEffect(() => {
         setFormData({ ...user });
     }, [user]);
- const handleInputChange = (e) => {
+
+    // Fungsi tunggal untuk kawal semua jenis input (Text & Select)
+    const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
+
     const handleSave = async () => {
+        // Validasi keselamatan: Password wajib 12 aksara
         if (formData.password && formData.password.length !== 12) {
             notify("Kata laluan mestilah tepat 12 aksara!", "error");
             return;
@@ -620,14 +624,14 @@ const AvatarPicker = ({ current, onSelect, onClose }) => (
             setUser(formData);
             localStorage.setItem('ppm_user', JSON.stringify(formData));
             setIsEditing(false);
-            notify("Profil berjaya dikemaskini!");
+            notify("Profil anda berjaya dikemaskini secara menyeluruh!");
         } else {
-            notify(res.message || "Gagal mengemaskini.", "error");
+            notify(res.message || "Gagal mengemaskini profil.", "error");
         }
     };
 
     return (
-        <div className="max-w-3xl mx-auto bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in">
+        <div className="max-w-3xl mx-auto bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-500">
             {showPicker && (
                 <AvatarPicker 
                     current={formData.profilePic} 
@@ -636,14 +640,15 @@ const AvatarPicker = ({ current, onSelect, onClose }) => (
                 />
             )}
 
+            {/* Header / Cover */}
             <div className="h-48 bg-gradient-to-r from-indigo-600 to-blue-700 relative">
                 <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 p-2 bg-white rounded-full shadow-2xl">
                     <div className="w-40 h-40 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-4 border-white relative group">
-                        <img src={formData.profilePic || AVATARS[0]} className="w-full h-full object-cover" />
+                        <img src={formData.profilePic || AVATARS[0]} className="w-full h-full object-cover" alt="Profile" />
                         {isEditing && (
-                            <button onClick={() => setShowPicker(true)} className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center cursor-pointer opacity-100 transition-all">
+                            <button onClick={() => setShowPicker(true)} className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center cursor-pointer transition-all">
                                 <Icon name="Camera" size={28} className="text-white" />
-                                <span className="text-xs text-white font-bold">TUKAR IKON</span>
+                                <span className="text-[10px] text-white font-bold uppercase">TUKAR FOTO</span>
                             </button>
                         )}
                     </div>
@@ -652,158 +657,67 @@ const AvatarPicker = ({ current, onSelect, onClose }) => (
 
             <div className="pt-24 pb-12 px-8 md:px-12">
                 {!isEditing ? (
+                    /* MOD LIHAT (VIEW) */
                     <div className="space-y-8">
                         <div className="text-center">
                             <h2 className="text-3xl font-black text-slate-800">{user.fullName}</h2>
-                            <p className="text-indigo-600 font-bold uppercase text-sm">{user.position}</p>
+                            <p className="text-indigo-600 font-bold uppercase text-sm tracking-widest">{user.position}</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-5 bg-slate-50 rounded-3xl border"><p className="text-[10px] font-black text-slate-400 uppercase">Username</p><p className="font-bold">@{user.username}</p></div>
-                            <div className="p-5 bg-indigo-50 rounded-3xl border"><p className="text-[10px] font-black text-indigo-400 uppercase">GPK Penilai</p><p className="font-bold">{user.reportingGpk || 'N/A'}</p></div>
-                        </div>
-                        <button onClick={() => setIsEditing(true)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black">SUNTING PROFIL</button>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        <input value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} className="w-full p-4 bg-slate-50 border rounded-2xl font-bold" placeholder="Nama Penuh" />
-                        <input value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full p-4 bg-slate-50 border rounded-2xl font-bold" placeholder="Password (12 aksara)" maxLength={12} />
-                        <div className="flex gap-3">
-                            <button onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black">SIMPAN</button>
-                            <button onClick={() => setIsEditing(false)} className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black">BATAL</button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-             
-    const handleSave = async () => {
-        // Validasi kata laluan 12 aksara
-        if (formData.password && formData.password.length !== 12) {
-            notify("Kata laluan mestilah tepat 12 aksara!", "error");
-            return;
-        }
-
-        const res = await callAPI('updateProfile', formData);
-        if (res.success) {
-            setUser(formData);
-            localStorage.setItem('ppm_user', JSON.stringify(formData));
-            setIsEditing(false);
-            notify("Profil anda telah berjaya dikemaskini secara menyeluruh!");
-        } else {
-            notify(res.message || "Gagal mengemaskini profil.", "error");
-        }
-    };
-
-    return (
-        <div className="max-w-3xl mx-auto bg-white rounded-[40px] shadow-sm border overflow-hidden animate-in fade-in duration-500">
-            {/* Header Section */}
-            <div className="h-48 bg-gradient-to-r from-indigo-600 to-blue-700 relative">
-                <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 p-2 bg-white rounded-full shadow-2xl">
-                    <div className="w-40 h-40 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden relative group border-4 border-white shadow-inner">
-                        {formData.profilePic ? (
-                            <img src={formData.profilePic} className="w-full h-full object-cover" alt="Profile" />
-                        ) : (
-                            <Icon name="UserCircle" size={100} className="text-slate-300" />
-                        )}
-                        
-                        {isEditing && (
-                            <label className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                <Icon name="Camera" size={28} className="text-white mb-1" />
-                                <span className="text-[10px] text-white font-bold uppercase tracking-tighter">Tukar Foto</span>
-                                <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
-                            </label>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="pt-24 pb-12 px-8 md:px-12">
-                {!isEditing ? (
-                    /* VIEW MODE */
-                    <div className="space-y-8">
-                        <div className="text-center">
-                            <h2 className="text-3xl font-black text-slate-800">{user.fullName}</h2>
-                            <p className="text-indigo-600 font-bold uppercase text-sm tracking-widest mt-1">{user.position}</p>
-                        </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Username</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Username</p>
                                 <p className="font-bold text-slate-700">@{user.username}</p>
                             </div>
                             <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Alamat Emel</p>
-                                <p className="font-bold text-slate-700 truncate">{user.email}</p>
-                            </div>
-                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Kata Laluan</p>
-                                <p className="font-bold text-slate-700 tracking-tighter">••••••••••••</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Emel</p>
+                                <p className="font-bold text-slate-700 truncate">{user.email || 'Tiada Emel'}</p>
                             </div>
                             <div className="p-5 bg-indigo-50 rounded-3xl border border-indigo-100 border-l-4 border-l-indigo-600">
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">GPK Penilai</p>
+                                <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">GPK Penilai</p>
                                 <p className="font-bold text-indigo-700">{user.reportingGpk || 'N/A'}</p>
                             </div>
                         </div>
-
-                        <button 
-                            onClick={() => setIsEditing(true)} 
-                            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all"
-                        >
+                        <button onClick={() => setIsEditing(true)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:-translate-y-0.5 transition-all">
                             SUNTING PROFIL PENUH
                         </button>
                     </div>
                 ) : (
-                    /* EDIT MODE */
+                    /* MOD SUNTING (EDIT) */
                     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
-                        <div className="flex items-center justify-between border-b pb-4">
-                            <h3 className="text-xl font-black text-slate-800">Kemaskini Maklumat</h3>
-                            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase">@{user.username}</span>
-                        </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-1">
                                 <label className="text-xs font-black text-slate-400 uppercase ml-2">Nama Penuh</label>
-                                <input name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500" />
+                                <input name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
-
                             <div className="space-y-1">
                                 <label className="text-xs font-black text-slate-400 uppercase ml-2">Emel</label>
-                                <input name="email" type="email" value={formData.email} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500" />
+                                <input name="email" type="email" value={formData.email} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
-
                             <div className="space-y-1">
                                 <label className="text-xs font-black text-slate-400 uppercase ml-2">Kata Laluan (12 Aksara)</label>
-                                <input name="password" value={formData.password} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500" maxLength={12} />
+                                <input name="password" value={formData.password} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" maxLength={12} />
                             </div>
-
                             <div className="space-y-1">
                                 <label className="text-xs font-black text-slate-400 uppercase ml-2">Jawatan</label>
-                                <select name="position" value={formData.position} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500">
+                                <select name="position" value={formData.position} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="PPM KELAS">PPM KELAS</option>
                                     <option value="PPM ASRAMA">PPM ASRAMA</option>
                                     <option value="PPM PRA">PPM PRA</option>
                                     <option value="GPK">GPK</option>
                                 </select>
                             </div>
-
                             <div className="space-y-1 md:col-span-2">
                                 <label className="text-xs font-black text-slate-400 uppercase ml-2">GPK Penilai</label>
-                                <select name="reportingGpk" value={formData.reportingGpk} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500">
+                                <select name="reportingGpk" value={formData.reportingGpk} onChange={handleInputChange} className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
                                     <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
                                     <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
                                 </select>
                             </div>
                         </div>
-
                         <div className="flex flex-col md:flex-row gap-3 pt-6">
-                            <button onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all">
-                                SIMPAN PERUBAHAN
-                            </button>
-                            <button onClick={() => { setFormData({...user}); setIsEditing(false); }} className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all">
-                                BATAL
-                            </button>
+                            <button onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all">SIMPAN PERUBAHAN</button>
+                            <button onClick={() => { setFormData({...user}); setIsEditing(false); }} className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all">BATAL</button>
                         </div>
                     </div>
                 )}
@@ -811,10 +725,6 @@ const AvatarPicker = ({ current, onSelect, onClose }) => (
         </div>
     );
 };
-
-
-
-
             // --- RENDER ---
 
             if (page === 'landing') return (
