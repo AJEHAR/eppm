@@ -139,9 +139,14 @@
             };
 
             const fetchReports = async (currUser) => {
-                const res = await callAPI('getReports', { userId: currUser.uid, role: currUser.role });
-                if (res.success) setReports(res.reports);
-            };
+    const res = await callAPI('getReports', {
+        userId: currUser.uid,
+        role: currUser.role,
+        fullName: currUser.fullName   // <-- tambah ini
+    });
+
+    if (res.success) setReports(res.reports);
+};
 
             // --- AUTH LOGIC ---
             const handleLogin = async (e) => {
