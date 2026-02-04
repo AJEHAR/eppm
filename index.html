@@ -88,7 +88,7 @@
 
         function App() {
             const [page, setPage] = useState('landing'); 
-            const [sidebarHidden, setSidebarHidden] = useState(false);
+            const [sidebarHidden, setSidebarHidden] = useState(true);
             const [subPage, setSubPage] = useState('dashboard');
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(false);
@@ -185,18 +185,21 @@
             // --- APP COMPONENTS ---
 
             const SidebarItem = ({ id, icon, label, roles = [] }) => {
-                if (roles.length > 0 && !roles.includes(user?.role)) return null;
-                const active = subPage === id;
-                return (
-                    <button 
-                        onClick={() => setSubPage(id)}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
-                    >
-                        <Icon name={icon} size={20} />
-                        <span className="font-semibold text-sm">{label}</span>
-                    </button>
-                );
-            };
+    return (
+        <button 
+            onClick={() => {
+                setSubPage(id);
+                // Tambah baris ini - auto close pada mobile
+                if (window.innerWidth < 768) {
+                    setSidebarHidden(true);
+                }
+            }}
+            className={`...`}
+        >
+            {/* ... */}
+        </button>
+    );
+};
 
             const AvatarPicker = ({ current, onSelect, onClose }) => (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
