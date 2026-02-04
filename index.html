@@ -466,7 +466,7 @@
                                 <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
                                     {/* Header dengan Butang Delete/Edit */}
                                     <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b-2 border-slate-300">
-                                        <h5 className="font-bold text-slate-800">Laporan harian #{log.day}</h5>
+                                        <h5 className="font-bold text-slate-800">Laporan harian {log.day}</h5>
                                         {activeReport.status === 'Draft' && (
                                             <div className="flex gap-2">
                                                 <button 
@@ -504,7 +504,7 @@
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
                                                 <td className="p-3 font-semibold">
                                                     {new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                                    <span className="ml-2 text-slate-500">({log.day})</span>
+                                                    <span className="ml-2 text-slate-500"></span>
                                                 </td>
                                             </tr>
                                             <tr className="border-b border-slate-300">
