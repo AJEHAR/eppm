@@ -88,6 +88,7 @@
 
         function App() {
             const [page, setPage] = useState('landing'); 
+            const [sidebarHidden, setSidebarHidden] = useState(false);
             const [subPage, setSubPage] = useState('dashboard');
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(false);
@@ -314,6 +315,16 @@
                     } else notify(res.message, "error");
                 };
 
+                const formatTime12Hour = (time24) => {
+    if (!time24) return '-';
+    const [hours, minutes] = time24.split(':');
+    let hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'p.m.' : 'a.m.';
+    hour = hour % 12 || 12;
+    return `${hour}.${minutes} ${ampm}`;
+};
+
+
                 const handleAddLog = async (e) => {
                     e.preventDefault();
                     const fd = new FormData(e.target);
@@ -521,11 +532,11 @@
                                             </tr>
                                             <tr className="border-b border-slate-300">
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
-                                                <td className="p-3 font-semibold">{log.startTime}</td>
+                                                <td className="p-3 font-semibold">{formatTime12Hour(log.startTime)}</td>
                                             </tr>
                                             <tr>
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
-                                                <td className="p-3 font-semibold">{log.endTime}</td>
+                                                <td className="p-3 font-semibold">{formatTime12Hour(log.endTime)}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -985,9 +996,15 @@
                                         <tr key={r.reportId} className="hover:bg-slate-50/30 transition-colors">
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center space-x-3">
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">{r.userId.substring(0,2)}</div>
-                                                    <div><p className="font-bold text-slate-700 text-sm capitalize">{r.userId}</p></div>
-                                                </div>
+    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">
+        {(r.ownerName || r.userId).substring(0,2)}
+    </div>
+    <div>
+        <p className="font-bold text-slate-700 text-sm">{r.ownerName || r.userId}</p>
+        <p className="text-[10px] text-slate-400">@{r.userId}</p>
+    </div>
+</div>
+
                                             </td>
                                             <td className="px-6 py-5">
                                                 <p className="font-bold text-slate-800 text-sm">Minggu {r.weekNum}</p>
