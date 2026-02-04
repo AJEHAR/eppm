@@ -402,9 +402,11 @@
 
                         <div className="space-y-4">
                             {activeReport.logs?.map((log, idx) => (
+                        <React.Fragment key={idx}>
 <div className="flex justify-between border-b pb-4 mb-4">
                                         <div className="flex gap-4">
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Tarikh</p><p className="font-bold text-slate-700">{new Date(log.date).toLocaleDateString()} ({log.day})</p></div>
+                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Tarikh</p><p className="font-bold text-slate-700">{selectedDate ? new Date(selectedDate).toLocaleDateString('ms-MY') : '-'}
+{autoDay || '-'})</p></div>
                                             <div><p className="text-[10px] font-bold text-slate-400 uppercase">Lokasi</p><p className="font-bold text-slate-700">{log.location}</p></div>
                                             <div><p className="text-[10px] font-bold text-slate-400 uppercase">Kehadiran</p><p className="font-bold text-slate-700">{log.attendance} Murid</p></div>
                                             <div><p className="text-[10px] font-bold text-slate-400 uppercase">Masa</p><p className="font-bold text-slate-700">{log.startTime} - {log.endTime}</p></div>
@@ -429,6 +431,8 @@
         ))}
     </tbody>
 </table>
+                        </React.Fragment>
+))}
 
                                 </div>
                             ))}
