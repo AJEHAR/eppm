@@ -301,6 +301,7 @@
                 const [view, setView] = useState('list');
                 const [activeReport, setActiveReport] = useState(null);
                 const [showLogForm, setShowLogForm] = useState(false);
+                const [editingLog, setEditingLog] = useState(null); // For edit mode
 
                 const handleCreateFolder = async (e) => {
                     e.preventDefault();
@@ -352,6 +353,61 @@
                     }
                 };
 
+                const handleDeleteLog = async (logId) => {
+                    if (window.confirm("Hapus log ini? Tindakan tidak boleh dibatalkan.")) {
+                        const res = await callAPI('deleteDailyLog', { logId });
+                        if (res.success) {
+                            notify("Log berjaya dihapus!");
+                            fetchReports(user);
+                        } else {
+                            notify(res.message || "Gagal hapus log", "error");
+                        }
+                    }
+                };
+
+                const handleEditLog = (log) => {
+                    setEditingLog(log);
+                    setShowLogForm(true);
+                };
+
+                const handleUpdateLog = async (e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.target);
+                    
+                    const taskRows = [];
+                    let idx = 0;
+                    while (fd.has(`m${idx}`)) {
+                        const m = fd.get(`m${idx}`);
+                        const t = fd.get(`t${idx}`);
+                        const c = fd.get(`c${idx}`);
+                        if (m || t || c) {
+                            taskRows.push({ m, t, c });
+                        }
+                        idx++;
+                    }
+
+                    const payload = {
+                        logId: editingLog.logId,
+                        date: fd.get('date'),
+                        day: fd.get('day'),
+                        location: fd.get('location'),
+                        attendance: fd.get('attendance'),
+                        startTime: fd.get('startTime'),
+                        endTime: fd.get('endTime'),
+                        tasks: taskRows
+                    };
+
+                    const res = await callAPI('updateDailyLog', payload);
+                    if (res.success) {
+                        notify("Log berjaya dikemaskini!");
+                        fetchReports(user);
+                        setShowLogForm(false);
+                        setEditingLog(null);
+                    } else {
+                        notify(res.message || "Gagal update log", "error");
+                    }
+                };
+
                 const confirmSubmit = async (id) => {
                     if (window.confirm("Adakah anda pasti? Laporan tidak boleh diubah selepas dihantar.")) {
                         const res = await callAPI('submitReport', { reportId: id });
@@ -398,21 +454,84 @@
                             )}
                         </div>
 
-                        {showLogForm && <DailyLogForm onSubmit={handleAddLog} onClose={() => setShowLogForm(false)} settings={settings} />}
+                        {showLogForm && <DailyLogForm 
+                            onSubmit={editingLog ? handleUpdateLog : handleAddLog} 
+                            onClose={() => { setShowLogForm(false); setEditingLog(null); }} 
+                            settings={settings}
+                            editingLog={editingLog}
+                        />}
 
                         <div className="space-y-4">
                             {activeReport.logs?.map((log, idx) => (
-                                <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
-                                    <div className="flex justify-between border-b pb-4 mb-4">
-                                        <div className="flex gap-4">
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Tarikh</p><p className="font-bold text-slate-700">{new Date(log.date).toLocaleDateString()} ({log.day})</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Lokasi</p><p className="font-bold text-slate-700">{log.location}</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Kehadiran</p><p className="font-bold text-slate-700">{log.attendance} Murid</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Masa</p><p className="font-bold text-slate-700">{log.startTime} - {log.endTime}</p></div>
-                                        </div>
+                                <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
+                                    {/* Header dengan Butang Delete/Edit */}
+                                    <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b-2 border-slate-300">
+                                        <h5 className="font-bold text-slate-800">Log Harian #{idx + 1}</h5>
+                                        {activeReport.status === 'Draft' && (
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => handleEditLog(log)}
+                                                    className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
+                                                >
+                                                    <Icon name="Edit" size={14}/> EDIT
+                                                </button>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => handleDeleteLog(log.logId)}
+                                                    className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1"
+                                                >
+                                                    <Icon name="Trash2" size={14}/> DELETE
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <table className="w-full text-sm text-left border-2 border-slate-300 mt-4">
+                                    {/* Maklumat Asas - Simple Table Like Image 1 */}
+                                    <div className="bg-slate-800 px-4 py-2 border-b-2 border-slate-300">
+                                        <h6 className="font-bold text-white uppercase text-xs tracking-wider">
+                                            <Icon name="Calendar" size={14} className="inline mr-2"/> Maklumat Asas
+                                        </h6>
+                                    </div>
+                                    
+                                    <table className="w-full text-sm">
+                                        <tbody>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">Nama Penuh</td>
+                                                <td className="p-3 font-semibold">{user.fullName}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
+                                                <td className="p-3 font-semibold">
+                                                    {new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                    <span className="ml-2 text-slate-500">({log.day})</span>
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
+                                                <td className="p-3 font-semibold">{log.day}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
+                                                <td className="p-3 font-semibold">{log.location}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
+                                                <td className="p-3 font-semibold">{log.attendance}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
+                                                <td className="p-3 font-semibold">{log.startTime}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
+                                                <td className="p-3 font-semibold">{log.endTime}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+
+                                    {/* Tugasan Table */}
+                                    <table className="w-full text-sm text-left border-t-2 border-slate-300 mt-4">
                                         <thead>
                                             <tr className="bg-slate-700 text-white">
                                                 <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>Masa</th>
@@ -490,14 +609,14 @@
 
             // ========== IMPROVED DAILY LOG FORM COMPONENT ==========
 
-            const DailyLogForm = ({ onSubmit, onClose, settings }) => {
-                const [selectedDate, setSelectedDate] = useState('');
-                const [autoDay, setAutoDay] = useState('');
-                const [tasks, setTasks] = useState([
-                    { m: '', t: '', c: '' },
-                    { m: '', t: '', c: '' },
-                    { m: '', t: '', c: '' }
-                ]);
+            const DailyLogForm = ({ onSubmit, onClose, settings, editingLog = null }) => {
+                const [selectedDate, setSelectedDate] = useState(editingLog?.date || '');
+                const [autoDay, setAutoDay] = useState(editingLog?.day || '');
+                const [tasks, setTasks] = useState(
+                    editingLog?.tasks?.length > 0 
+                        ? editingLog.tasks 
+                        : [{ m: '', t: '', c: '' }, { m: '', t: '', c: '' }, { m: '', t: '', c: '' }]
+                );
 
                 // Auto-calculate day when date changes
                 useEffect(() => {
@@ -557,7 +676,7 @@
                         <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl my-8 flex flex-col max-h-[90vh]">
                             <div className="p-6 border-b flex justify-between items-center bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-t-3xl sticky top-0 z-10">
                                 <div>
-                                    <h3 className="font-black text-lg">Tambah Laporan Harian</h3>
+                                    <h3 className="font-black text-lg">{editingLog ? 'Edit' : 'Tambah'} Laporan Harian</h3>
                                     <p className="text-xs opacity-80">Auto-simpan aktif • Data selamat</p>
                                 </div>
                                 <button onClick={onClose} className="hover:rotate-90 transition-transform p-2 hover:bg-white/10 rounded-full">
@@ -566,124 +685,136 @@
                             </div>
 
                             <form onSubmit={(e) => { onSubmit(e); clearDraft(); }} className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
-                                {/* Section 1: Basic Info */}
-                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 overflow-x-auto">
-                                    <h4 className="font-black text-slate-700 uppercase text-xs tracking-widest flex items-center mb-4">
-                                        <Icon name="Calendar" size={16} className="mr-2"/> Maklumat Asas
-                                    </h4>
-                                    
-                                    <div className="mb-4 overflow-x-auto">
-                                        <table className="w-full border-2 border-slate-300 text-sm">
-                                            <thead>
-                                                <tr className="bg-indigo-600 text-white">
-                                                    <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Nama Penuh</th>
-                                                    <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Tarikh</th>
-                                                    <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Hari</th>
-                                                    <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Lokasi</th>
-                                                    <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Kehadiran</th>
-                                                    <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Masa Masuk</th>
-                                                    <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Masa Keluar</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr className="bg-white">
-                                                    {/* Nama Penuh - Auto Fill */}
-                                                    <td className="p-3 border border-slate-300">
-                                                        <input 
-                                                            type="text"
-                                                            value={user.fullName}
-                                                            readOnly
-                                                            className="w-full p-2 bg-slate-100 rounded font-bold text-slate-700 cursor-not-allowed text-sm"
-                                                        />
-                                                    </td>
-                                                    
-                                                    {/* Tarikh */}
-                                                    <td className="p-3 border border-slate-300">
-                                                        <input 
-                                                            name="date" 
-                                                            type="date" 
-                                                            value={selectedDate}
-                                                            onChange={(e) => setSelectedDate(e.target.value)}
-                                                            className="w-full p-2 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm" 
-                                                            required 
-                                                        />
-                                                    </td>
-                                                    
-                                                    {/* Hari - Auto Fill */}
-                                                    <td className="p-3 border border-slate-300">
-                                                        <input 
-                                                            name="day"
-                                                            type="text" 
-                                                            value={autoDay}
-                                                            readOnly
-                                                            className="w-full p-2 bg-indigo-50 rounded font-bold text-indigo-700 cursor-not-allowed text-sm" 
-                                                        />
-                                                    </td>
-                                                    
-                                                    {/* Lokasi - SIMPLE AUTOCOMPLETE */}
-                                                    <td className="p-3 border border-slate-300">
-                                                        <input 
-                                                            name="location"
-                                                            type="text"
-                                                            list="location-suggestions"
-                                                            placeholder="Taip lokasi..."
-                                                            className="w-full p-2 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm"
-                                                            required
-                                                        />
-                                                        <datalist id="location-suggestions">
-                                                            <option value="Aspura" />
-                                                            <option value="Aspuri" />
-                                                            <option value="1 Muadzam" />
-                                                            <option value="1 Pekan" />
-                                                            <option value="1 Rompin" />
-                                                            <option value="1 Bera" />
-                                                            <option value="1 Jerantut" />
-                                                            <option value="2 Maran 2" />
-                                                            <option value="2 Maran 3" />
-                                                            <option value="2 Maran 1" />
-                                                            <option value="3 Bentong" />
-                                                            <option value="Permata" />
-                                                            <option value="Delima" />
-                                                        </datalist>
-                                                    </td>
-                                                    
-                                                    {/* Kehadiran */}
-                                                    <td className="p-3 border border-slate-300">
-                                                        <input 
-                                                            name="attendance" 
-                                                            type="number" 
-                                                            min="0"
-                                                            placeholder="124"
-                                                            className="w-full p-2 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm" 
-                                                            required 
-                                                        />
-                                                    </td>
-                                                    
-                                                    {/* Masa Masuk - TIME bukan TIMESTAMP */}
-                                                    <td className="p-3 border border-slate-300">
-                                                        <input 
-                                                            name="startTime" 
-                                                            type="time"
-                                                            placeholder="07:00"
-                                                            className="w-full p-2 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm" 
-                                                            required 
-                                                        />
-                                                    </td>
-                                                    
-                                                    {/* Masa Keluar - TIME bukan TIMESTAMP */}
-                                                    <td className="p-3 border border-slate-300">
-                                                        <input 
-                                                            name="endTime" 
-                                                            type="time"
-                                                            placeholder="16:05"
-                                                            className="w-full p-2 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm" 
-                                                            required 
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
+                                {/* Section 1: Basic Info - Simple 2 Column Table */}
+                                <div className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
+                                    <div className="bg-slate-800 p-3 border-b-2 border-slate-300">
+                                        <h4 className="font-black text-white uppercase text-sm tracking-wider flex items-center">
+                                            <Icon name="Calendar" size={16} className="mr-2"/> Maklumat Asas
+                                        </h4>
                                     </div>
+                                    
+                                    <table className="w-full text-sm">
+                                        <tbody>
+                                            {/* Nama Penuh */}
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/3">Nama Penuh</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        type="text"
+                                                        value={user.fullName}
+                                                        readOnly
+                                                        className="w-full font-semibold text-slate-700"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Tarikh */}
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        name="date" 
+                                                        type="date" 
+                                                        value={selectedDate}
+                                                        onChange={(e) => setSelectedDate(e.target.value)}
+                                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
+                                                        required 
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Hari - Auto Fill */}
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        name="day"
+                                                        type="text" 
+                                                        value={autoDay}
+                                                        readOnly
+                                                        className="w-full font-semibold text-slate-700"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Lokasi */}
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        name="location"
+                                                        type="text"
+                                                        list="location-suggestions"
+                                                        defaultValue={editingLog?.location || ''}
+                                                        placeholder="Taip lokasi..."
+                                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none"
+                                                        required
+                                                    />
+                                                    <datalist id="location-suggestions">
+                                                        <option value="Aspura" />
+                                                        <option value="Aspuri" />
+                                                        <option value="1 Muadzam" />
+                                                        <option value="1 Pekan" />
+                                                        <option value="1 Rompin" />
+                                                        <option value="1 Bera" />
+                                                        <option value="1 Jerantut" />
+                                                        <option value="2 Maran 2" />
+                                                        <option value="2 Maran 3" />
+                                                        <option value="2 Maran 1" />
+                                                        <option value="3 Bentong" />
+                                                        <option value="Permata" />
+                                                        <option value="Delima" />
+                                                    </datalist>
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Kehadiran */}
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        name="attendance" 
+                                                        type="number" 
+                                                        min="0"
+                                                        defaultValue={editingLog?.attendance || ''}
+                                                        placeholder="124"
+                                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
+                                                        required 
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Masa Masuk */}
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        name="startTime" 
+                                                        type="time"
+                                                        defaultValue={editingLog?.startTime || ''}
+                                                        placeholder="07:00"
+                                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
+                                                        required 
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Masa Keluar */}
+                                            <tr>
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        name="endTime" 
+                                                        type="time"
+                                                        defaultValue={editingLog?.endTime || ''}
+                                                        placeholder="16:05"
+                                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
+                                                        required 
+                                                    />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
 
                                 {/* Section 2: Tasks (Dynamic Cards) */}
@@ -731,7 +862,7 @@
                                         className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white py-4 rounded-2xl font-black shadow-xl hover:shadow-2xl transition-all flex items-center justify-center gap-2"
                                     >
                                         <Icon name="Save" size={20}/>
-                                        SIMPAN LOG HARIAN
+                                        {editingLog ? 'KEMASKINI LOG HARIAN' : 'SIMPAN LOG HARIAN'}
                                     </button>
                                 </div>
                             </form>
