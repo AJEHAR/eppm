@@ -403,14 +403,14 @@
                         <div className="space-y-4">
                             {activeReport.logs?.map((log, idx) => (
                                 <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                                    <div className="flex justify-between border-b pb-4 mb-4">
-                                        <div className="flex gap-4">
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Tarikh</p><p className="font-bold text-slate-700">{new Date(log.date).toLocaleDateString()} ({log.day})</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Lokasi</p><p className="font-bold text-slate-700">{log.location}</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Kehadiran</p><p className="font-bold text-slate-700">{log.attendance} Murid</p></div>
-                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Masa</p><p className="font-bold text-slate-700">{log.startTime} - {log.endTime}</p></div>
-                                        </div>
-                                    </div>
+                                <div className="flex justify-between border-b pb-4 mb-4">
+    <div className="flex gap-4">
+        <div><p className="text-[10px] font-bold text-slate-400 uppercase">Tarikh</p><p className="font-bold text-slate-700">{new Date(log.date).toLocaleDateString()} ({log.day})</p></div>
+        <div><p className="text-[10px] font-bold text-slate-400 uppercase">Lokasi</p><p className="font-bold text-slate-700">{log.location}</p></div>
+        <div><p className="text-[10px] font-bold text-slate-400 uppercase">Hadir</p><p className="font-bold text-slate-700">{log.attendance} Orang</p></div>
+        <div><p className="text-[10px] font-bold text-slate-400 uppercase">Masa</p><p className="font-bold text-slate-700">{log.startTime} - {log.endTime}</p></div>
+    </div>
+</div>
                                     <table className="w-full text-xs text-left border-collapse">
                                         <thead>
                                             <tr className="bg-slate-50 text-slate-500 uppercase font-bold">
@@ -639,19 +639,35 @@ const fetchLocationSuggestions = async (query) => {
         <Icon name="Calendar" size={16} className="mr-2"/> Maklumat Asas
     </h4>
     
-    <table className="w-full text-left border-collapse border-2 border-slate-300">
+<div className="mb-4 overflow-x-auto">
+    <table className="w-full border-2 border-slate-300 text-sm">
         <thead>
             <tr className="bg-indigo-600 text-white">
-                <th className="p-3 border border-slate-300 font-bold text-xs uppercase">Nama Penuh</th>
-                <th className="p-3 border border-slate-300 font-bold text-xs uppercase">Tarikh</th>
-                <th className="p-3 border border-slate-300 font-bold text-xs uppercase">Hari</th>
-                <th className="p-3 border border-slate-300 font-bold text-xs uppercase">Lokasi</th>
-                <th className="p-3 border border-slate-300 font-bold text-xs uppercase">Kehadiran</th>
-                <th className="p-3 border border-slate-300 font-bold text-xs uppercase">Masa Masuk</th>
-                <th className="p-3 border border-slate-300 font-bold text-xs uppercase">Masa Keluar</th>
+                <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Nama Penuh</th>
+                <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Tarikh</th>
+                <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Hari</th>
+                <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Lokasi</th>
+                <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Kehadiran</th>
+                <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Masa Masuk</th>
+                <th className="p-3 border border-slate-300 font-bold text-xs uppercase text-left">Masa Keluar</th>
             </tr>
         </thead>
         <tbody>
+            <tr className="bg-white">
+                <td className="p-3 border border-slate-300 font-bold text-slate-700">{user.fullName}</td>
+                <td className="p-3 border border-slate-300 font-medium text-slate-700">
+                    {new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </td>
+                <td className="p-3 border border-slate-300 font-medium text-slate-700">{log.day}</td>
+                <td className="p-3 border border-slate-300 font-medium text-slate-700">{log.location}</td>
+                <td className="p-3 border border-slate-300 font-medium text-slate-700">{log.attendance} Orang</td>
+                <td className="p-3 border border-slate-300 font-bold text-indigo-700">{log.startTime}</td>
+                <td className="p-3 border border-slate-300 font-bold text-indigo-700">{log.endTime}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
             <tr className="bg-white">
                 {/* Nama Penuh - Auto Fill */}
                 <td className="p-3 border border-slate-300">
