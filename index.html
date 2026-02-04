@@ -686,16 +686,32 @@ const fetchLocationSuggestions = async (query) => {
                     />
                 </td>
                 
-                {/* Lokasi - dengan AUTOCOMPLETE */}
-                <td className="p-3 border border-slate-300">
-                    <LocationAutocomplete 
-                        name="location"
-                        value={selectedLocation}
-                        onChange={setSelectedLocation}
-                        suggestions={locationSuggestions}
-                        onFetchSuggestions={fetchLocationSuggestions}
-                    />
-                </td>
+               {/* Lokasi - SIMPLE AUTOCOMPLETE */}
+<td className="p-3 border border-slate-300">
+    <input 
+        name="location"
+        type="text"
+        list="location-suggestions"
+        placeholder="Taip lokasi..."
+        className="w-full p-2 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm"
+        required
+    />
+    <datalist id="location-suggestions">
+        <option value="Aspura" />
+        <option value="Aspuri" />
+        <option value="1 Muadzam" />
+        <option value="1 Pekan" />
+        <option value="1 Rompin" />
+        <option value="1 Bera" />
+        <option value="1 Jerantut" />
+        <option value="2 Maran 2" />
+        <option value="2 Maran 3" />
+        <option value="2 Maran 1" />
+        <option value="3 Bentong" />
+        <option value="Permata" />
+        <option value="Delima" />
+    </datalist>
+</td>
                 
                 {/* Kehadiran */}
                 <td className="p-3 border border-slate-300">
