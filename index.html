@@ -535,8 +535,68 @@ const formatTime12Hour = (time24) => {
                             )}
                         </div>
 
-                        {/* Rest of the log display code... */}
-                        {/* (Keep existing table structure) */}
+                       {/* Maklumat Asas - Simple Table Like Image 1 */}
+<div className="bg-slate-800 px-4 py-2 border-b-2 border-slate-300">
+    <h6 className="font-bold text-white uppercase text-xs tracking-wider">
+        <Icon name="Calendar" size={14} className="inline mr-2"/> Maklumat Asas
+    </h6>
+</div>
+
+<table className="w-full text-sm">
+    <tbody>
+        <tr className="border-b border-slate-300">
+            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">Nama</td>
+            <td className="p-3 font-semibold">{user.fullName}</td>
+        </tr>
+        <tr className="border-b border-slate-300">
+            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
+            <td className="p-3 font-semibold">
+                {new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                <span className="ml-2 text-slate-500"></span>
+            </td>
+        </tr>
+        <tr className="border-b border-slate-300">
+            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
+            <td className="p-3 font-semibold">{log.day}</td>
+        </tr>
+        <tr className="border-b border-slate-300">
+            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
+            <td className="p-3 font-semibold">{log.location}</td>
+        </tr>
+        <tr className="border-b border-slate-300">
+            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
+            <td className="p-3 font-semibold">{log.attendance}</td>
+        </tr>
+        <tr className="border-b border-slate-300">
+            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
+            <td className="p-3 font-semibold">{formatTime12Hour(log.startTime)}</td>
+        </tr>
+        <tr>
+            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
+            <td className="p-3 font-semibold">{formatTime12Hour(log.endTime)}</td>
+        </tr>
+    </tbody>
+</table>
+
+{/* Tugasan Table */}
+<table className="w-full text-sm text-left border-t-2 border-slate-300 mt-4">
+    <thead>
+        <tr className="bg-slate-700 text-white">
+            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>Masa</th>
+            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>Tugasan</th>
+            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>Catatan</th>
+        </tr>
+    </thead>
+    <tbody>
+        {log.tasks?.map((t, ti) => (
+            <tr key={ti} className="bg-white hover:bg-slate-50">
+                <td className="p-3 border border-slate-300 font-bold text-indigo-700">{t.m || '-'}</td>
+                <td className="p-3 border border-slate-300 font-medium text-slate-800">{t.t || '-'}</td>
+                <td className="p-3 border border-slate-300 text-slate-600 italic">{t.c || '-'}</td>
+            </tr>
+        ))}
+    </tbody>
+</table>
                     </div>
                 ))}
                 {activeReport.logs?.length === 0 && <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium">Tiada log harian ditemui. Klik butang tambah di atas.</div>}
