@@ -435,15 +435,6 @@ const formatTime12Hour = (time24) => {
                     } else notify(res.message, "error");
                 };
 
-                const formatTime12Hour = (time24) => {
-    if (!time24) return '-';
-    const [hours, minutes] = time24.split(':');
-    let hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'p.m.' : 'a.m.';
-    hour = hour % 12 || 12;
-    return `${hour}.${minutes} ${ampm}`;
-};
-
 
                 const handleAddLog = async (e) => {
                     e.preventDefault();
@@ -1032,34 +1023,7 @@ const loadTemplate = () => {
                                     </table>
                                 </div>
 
-                                {/* Section 2: Tasks (Dynamic Cards) */}
-                                <div className="space-y-4">
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <h4 className="font-black text-slate-700 uppercase text-xs tracking-widest flex items-center">
-            <Icon name="ListTodo" size={16} className="mr-2"/> Perihal Tugasan
-        </h4>
-        
-        {/* ✅ DROPDOWN + BUTTON */}
-        <div className="flex items-center gap-2">
-            <select 
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-                className="text-xs font-bold px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-            >
-                {Object.entries(TEMPLATE_OPTIONS).map(([key, value]) => (
-                    <option key={key} value={key}>{value.label}</option>
-                ))}
-            </select>
-            
-            <button 
-                type="button"
-                onClick={loadTemplate}
-                className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-lg flex items-center whitespace-nowrap"
-            >
-                <Icon name="Download" size={14} className="mr-1"/> Muat
-            </button>
-        </div>
-    </div>
+                                 {/* Section 2: Tasks (Dynamic Cards) */}
 
 
                                     <div className="space-y-3">
