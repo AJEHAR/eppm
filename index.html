@@ -433,84 +433,107 @@ const formatTime12Hour = (time24) => {
                     }
                 };
 
-                const confirmSubmit = async (id) => {
-                    if (window.confirm("Adakah anda pasti? Laporan tidak boleh diubah selepas dihantar.")) {
-                        const res = await callAPI('submitReport', { reportId: id });
-                        if (res.success) {
-                            notify("Laporan berjaya dihantar!");
-                            fetchReports(user);
-                        }
-                    }
-                };
+               const handleUnreport = async (id) => {
+        if (window.confirm("Tarik semula laporan ini ke status Draft? Anda boleh edit semula selepas itu.")) {
+            const res = await callAPI('unreportReport', { reportId: id });
+            if (res.success) {
+                notify("Laporan berjaya ditarik semula! Status: Draft");
+                fetchReports(user);
+                if (activeReport && activeReport.reportId === id) {
+                    setActiveReport({...activeReport, status: 'Draft'});
+                }
+            } else {
+                notify(res.message || "Gagal tarik semula laporan", "error");
+            }
+        }
+    };
 
-                if (view === 'createFolder') return (
-                    <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100 mt-10">
-                        <h3 className="text-xl font-black mb-6 flex items-center"><Icon name="Plus" className="mr-2 text-indigo-600"/> Cipta Tapak Minggu</h3>
-                        <form onSubmit={handleCreateFolder} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Tahun</label>
-                                <input name="year" type="number" defaultValue={new Date().getFullYear()} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" required />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minggu</label>
-                                <select name="weekNum" className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
-                                </select>
-                            </div>
-                            <div className="flex gap-2 pt-4">
-                                <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100">Cipta</button>
-                                <button type="button" onClick={() => setView('list')} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold">Batal</button>
-                            </div>
-                        </form>
-                    </div>
-                );
+    const confirmSubmit = async (id) => {
+        if (window.confirm("Adakah anda pasti? Laporan akan dihantar untuk semakan GPK.")) {
+            const res = await callAPI('submitReport', { reportId: id });
+            if (res.success) {
+                notify("Laporan berjaya dihantar!");
+                fetchReports(user);
+            }
+        }
+    };
 
-                if (view === 'view' && activeReport) return (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <button onClick={() => setView('list')} className="flex items-center text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-lg">
-                                <Icon name="ArrowLeft" size={16} className="mr-2" /> Kembali ke Senarai
-                            </button>
-                            <h2 className="text-xl font-black">Minggu {activeReport.weekNum} ({activeReport.year})</h2>
+              if (view === 'view' && activeReport) return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <button onClick={() => setView('list')} className="flex items-center text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-lg">
+                    <Icon name="ArrowLeft" size={16} className="mr-2" /> Kembali ke Senarai
+                </button>
+                
+                <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-black">Minggu {activeReport.weekNum} ({activeReport.year})</h2>
+                    
+                    {/* ✅ STATUS BADGE */}
+                    <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${
+                        activeReport.status === 'Draft' ? 'bg-slate-100 text-slate-600' : 
+                        activeReport.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 
+                        'bg-emerald-100 text-emerald-700'
+                    }`}>
+                        {activeReport.status}
+                    </span>
+                </div>
+
+                <div className="flex gap-2">
+                    {/* ✅ BUTANG TAMBAH LOG - Hanya untuk Draft */}
+                    {activeReport.status === 'Draft' && (
+                        <button 
+                            onClick={() => setShowLogForm(true)} 
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-100"
+                        >
+                            <Icon name="Plus" size={16}/> Tambah Log
+                        </button>
+                    )}
+                    
+                    {/* ✅ BUTANG TARIK SEMULA - Hanya untuk Submitted */}
+                    {activeReport.status === 'Submitted' && user.role === 'User' && (
+                        <button 
+                            onClick={() => handleUnreport(activeReport.reportId)}
+                            className="bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-orange-700 shadow-lg shadow-orange-100"
+                        >
+                            <Icon name="RotateCcw" size={16}/> Tarik Semula
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {showLogForm && <DailyLogForm 
+                onSubmit={editingLog ? handleUpdateLog : handleAddLog} 
+                onClose={() => { setShowLogForm(false); setEditingLog(null); }} 
+                settings={settings}
+                editingLog={editingLog}
+            />}
+
+            <div className="space-y-4">
+                {activeReport.logs?.map((log, idx) => (
+                    <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
+                        {/* Header dengan Butang Delete/Edit */}
+                        <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b-2 border-slate-300">
+                            <h5 className="font-bold text-slate-800">Laporan harian {log.day}</h5>
+                            {/* ✅ BUTANG EDIT/DELETE - Hanya untuk Draft */}
                             {activeReport.status === 'Draft' && (
-                                <button onClick={() => setShowLogForm(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center">
-                                    <Icon name="Plus" size={16} className="mr-2"/> Tambah Log Harian
-                                </button>
+                                <div className="flex gap-2">
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleEditLog(log)}
+                                        className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
+                                    >
+                                        <Icon name="Edit" size={14}/> EDIT
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleDeleteLog(log.logId)}
+                                        className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1"
+                                    >
+                                        <Icon name="Trash2" size={14}/> DELETE
+                                    </button>
+                                </div>
                             )}
                         </div>
-
-                        {showLogForm && <DailyLogForm 
-                            onSubmit={editingLog ? handleUpdateLog : handleAddLog} 
-                            onClose={() => { setShowLogForm(false); setEditingLog(null); }} 
-                            settings={settings}
-                            editingLog={editingLog}
-                        />}
-
-                        <div className="space-y-4">
-                            {activeReport.logs?.map((log, idx) => (
-                                <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
-                                    {/* Header dengan Butang Delete/Edit */}
-                                    <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b-2 border-slate-300">
-                                        <h5 className="font-bold text-slate-800">Laporan harian {log.day}</h5>
-                                        {activeReport.status === 'Draft' && (
-                                            <div className="flex gap-2">
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => handleEditLog(log)}
-                                                    className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
-                                                >
-                                                    <Icon name="Edit" size={14}/> EDIT
-                                                </button>
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => handleDeleteLog(log.logId)}
-                                                    className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1"
-                                                >
-                                                    <Icon name="Trash2" size={14}/> DELETE
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
 
                                     {/* Maklumat Asas - Simple Table Like Image 1 */}
                                     <div className="bg-slate-800 px-4 py-2 border-b-2 border-slate-300">
@@ -581,56 +604,81 @@ const formatTime12Hour = (time24) => {
                     </div>
                 );
 
-                return (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
-                            {user.role === 'User' && (
-                                <button onClick={() => setView('createFolder')} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg shadow-indigo-100 hover:-translate-y-1 transition-transform">
-                                    <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
-                                </button>
-                            )}
-                        </div>
+              return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
+                {user.role === 'User' && (
+                    <button onClick={() => setView('createFolder')} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg shadow-indigo-100 hover:-translate-y-1 transition-transform">
+                        <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
+                    </button>
+                )}
+            </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {reports.map((r) => (
-                                <div key={r.reportId} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500">
-                                    <div className="p-6">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <h4 className="text-2xl font-black text-slate-800">Minggu {r.weekNum}</h4>
-                                                <p className="text-sm font-medium text-slate-400 italic">Sesi {r.year}</p>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                                r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
-                                                r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
-                                            }`}>
-                                                {r.status}
-                                            </span>
-                                        </div>
-                                        <div className="space-y-3 pt-4 border-t border-slate-50">
-                                            <div className="flex items-center text-slate-500 text-xs font-medium">
-                                                <Icon name="Calendar" size={14} className="mr-2 text-indigo-400" /> ID: {r.reportId}
-                                            </div>
-                                            {r.submittedAt && (
-                                                <div className="flex items-center text-slate-500 text-xs font-medium">
-                                                    <Icon name="Clock" size={14} className="mr-2 text-indigo-400" /> Hantar: {new Date(r.submittedAt).toLocaleString()}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 mt-6">
-                                            <button onClick={() => {setActiveReport(r); setView('view');}} className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors">Lihat Log</button>
-                                            {r.status === 'Draft' && user.role === 'User' && (
-                                                <button onClick={() => confirmSubmit(r.reportId)} className="py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors">Hantar</button>
-                                            )}
-                                        </div>
-                                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reports.map((r) => (
+                    <div key={r.reportId} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500">
+                        <div className="p-6">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 className="text-2xl font-black text-slate-800">Minggu {r.weekNum}</h4>
+                                    <p className="text-sm font-medium text-slate-400 italic">Sesi {r.year}</p>
                                 </div>
-                            ))}
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                    r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
+                                    r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                    {r.status}
+                                </span>
+                            </div>
+                            <div className="space-y-3 pt-4 border-t border-slate-50">
+                                <div className="flex items-center text-slate-500 text-xs font-medium">
+                                    <Icon name="Calendar" size={14} className="mr-2 text-indigo-400" /> ID: {r.reportId}
+                                </div>
+                                {r.submittedAt && (
+                                    <div className="flex items-center text-slate-500 text-xs font-medium">
+                                        <Icon name="Clock" size={14} className="mr-2 text-indigo-400" /> Hantar: {new Date(r.submittedAt).toLocaleString()}
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* ✅ UPDATE BUTTON GRID */}
+                            <div className={`grid ${r.status === 'Draft' ? 'grid-cols-2' : r.status === 'Submitted' ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mt-6`}>
+                                <button 
+                                    onClick={() => {setActiveReport(r); setView('view');}} 
+                                    className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
+                                >
+                                    Lihat Log
+                                </button>
+                                
+                                {/* Hantar (Draft only) */}
+                                {r.status === 'Draft' && user.role === 'User' && (
+                                    <button 
+                                        onClick={() => confirmSubmit(r.reportId)} 
+                                        className="py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors"
+                                    >
+                                        Hantar
+                                    </button>
+                                )}
+                                
+                                {/* ✅ Tarik Semula (Submitted only) */}
+                                {r.status === 'Submitted' && user.role === 'User' && (
+                                    <button 
+                                        onClick={() => handleUnreport(r.reportId)}
+                                        className="py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
+                                    >
+                                        <Icon name="RotateCcw" size={14}/>
+                                        Tarik Semula
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
-                );
-            };
+                ))}
+            </div>
+        </div>
+    );
+};
 
             // ========== IMPROVED DAILY LOG FORM COMPONENT ==========
 
