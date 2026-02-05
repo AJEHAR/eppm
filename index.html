@@ -137,18 +137,6 @@
     }
 };
 
-
-        // TEMPLATE RUTIN PPM (untuk auto-fill)
-        const DEFAULT_TEMPLATE = TEMPLATE_OPTIONS['PPM_KELAS_1'].tasks;
-            { m: "06:50 - 07:00", t: "Penyambutan Murid Di Pintu Masuk Sekolah", c: "Memantau kedatangan murid" },
-            { m: "07:00 - 07:20", t: "Perhimpunan Pagi", c: "Membantu mengawal keteraturan barisan" },
-            { m: "07:20 - 09:50", t: "Membantu guru membimbing dan mengawal tingkah laku murid sewaktu PdPc", c: "Bilik Darjah / Kawasan Sekolah" },
-            { m: "09:50 - 10:10", t: "Rehat Pertama", c: "Bertugas di kantin dan kawasan sekolah" },
-            { m: "10:10 - 12:40", t: "Membantu guru membimbing dan mengawal tingkah laku murid sewaktu PdPc", c: "Bilik Darjah / Kawasan Sekolah" },
-            { m: "12:40 - 14:00", t: "Rehat Makan Tengahari dan Solat", c: "Bertugas di kantin dan surau" },
-            { m: "14:00 - 16:05", t: "Membantu guru membimbing dan mengawal tingkah laku murid sewaktu PdPc", c: "Bilik Darjah / Kawasan Sekolah" },
-        ];
-
         // ✅ PINDAHKAN KE GLOBAL SCOPE
 const formatTime12Hour = (time24) => {
     if (!time24) return '-';
@@ -862,16 +850,12 @@ const formatTime12Hour = (time24) => {
                     setTasks(updated);
                 };
 
-               const [selectedTemplate, setSelectedTemplate] = useState('PPM_KELAS_1');
-
-const loadTemplate = () => {
-    const templateData = TEMPLATE_OPTIONS[selectedTemplate];
-    if (window.confirm(`Muat ${templateData.label}? Data sedia ada akan diganti.`)) {
-        setTasks(templateData.tasks.map(t => ({ ...t })));
-    }
-};
-
-
+                const loadTemplate = () => {
+                    const templateData = TEMPLATE_OPTIONS[selectedTemplate];
+                    if (window.confirm(`Muat ${templateData.label}? Data sedia ada akan diganti.`)) {
+                        setTasks(templateData.tasks.map(t => ({ ...t })));
+                    }
+                };
 
                 const clearDraft = () => {
                     localStorage.removeItem('ppm_log_draft');
@@ -1023,8 +1007,33 @@ const loadTemplate = () => {
                                     </table>
                                 </div>
 
-                                 {/* Section 2: Tasks (Dynamic Cards) */}
-
+                                   {/* Section 2: Tasks (Dynamic Cards) */}
+                                <div className="space-y-4">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                        <h4 className="font-black text-slate-700 uppercase text-xs tracking-widest flex items-center">
+                                            <Icon name="ListTodo" size={16} className="mr-2"/> Perihal Tugasan
+                                        </h4>
+                                        
+                                        <div className="flex items-center gap-2">
+                                            <select 
+                                                value={selectedTemplate}
+                                                onChange={(e) => setSelectedTemplate(e.target.value)}
+                                                className="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            >
+                                                {Object.entries(TEMPLATE_OPTIONS).map(([key, value]) => (
+                                                    <option key={key} value={key}>{value.label}</option>
+                                                ))}
+                                            </select>
+                                            
+                                            <button 
+                                                type="button"
+                                                onClick={loadTemplate}
+                                                className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg flex items-center whitespace-nowrap"
+                                            >
+                                                <Icon name="Download" size={14} className="mr-1"/> Muat Template
+                                            </button>
+                                        </div>
+                                    </div>
 
                                     <div className="space-y-3">
                                         {tasks.map((task, idx) => (
