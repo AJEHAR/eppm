@@ -32,6 +32,112 @@
             `https://api.dicebear.com/7.x/notionists/svg?seed=${i + 150}&backgroundColor=b6e3f4,c0aede,d1d4f9`
         );
 
+        const TEMPLATE_OPTIONS = {
+    'PPM_KELAS_1': {
+        label: 'Template PPM Kelas 1',
+        tasks: [
+            { m: "06:50 - 07:00", t: "Penyambutan Murid Di Pintu Masuk Sekolah", c: "Memantau kedatangan murid" },
+            { m: "07:00 - 07:20", t: "Perhimpunan Pagi", c: "Membantu mengawal keteraturan barisan" },
+            { m: "07:20 - 09:50", t: "Membantu guru membimbing dan mengawal tingkah laku murid sewaktu PdPc", c: "Bilik Darjah / Kawasan Sekolah" },
+            { m: "09:50 - 10:10", t: "Rehat Pertama", c: "Bertugas di kantin dan kawasan sekolah" },
+            { m: "10:10 - 12:40", t: "Membantu guru membimbing dan mengawal tingkah laku murid sewaktu PdPc", c: "Bilik Darjah / Kawasan Sekolah" },
+            { m: "12:40 - 14:00", t: "Rehat Makan Tengahari dan Solat", c: "Bertugas di kantin dan surau" },
+            { m: "14:00 - 16:05", t: "Membantu guru membimbing dan mengawal tingkah laku murid sewaktu PdPc", c: "Bilik Darjah / Kawasan Sekolah" }
+        ]
+    },
+    
+    'PPM_KELAS_2': {
+        label: 'Template PPM Kelas 2',
+        tasks: [
+            { m: "07:00 - 07:30", t: "Penyambutan dan Perhimpunan", c: "Mengawasi murid di padang" },
+            { m: "07:30 - 10:00", t: "Sesi PdPc Pagi", c: "Bantu guru di bilik darjah" },
+            { m: "10:00 - 10:30", t: "Waktu Rehat", c: "Mengawasi murid di kantin" },
+            { m: "10:30 - 13:00", t: "Sesi PdPc Tengah Hari", c: "Bantu guru di bilik darjah" },
+            { m: "13:00 - 14:30", t: "Waktu Makan & Solat", c: "Mengawasi murid" },
+            { m: "14:30 - 16:30", t: "Sesi PdPc Petang", c: "Bantu guru di bilik darjah" }
+        ]
+    },
+    
+    'SYIF_PAGI': {
+        label: 'Template Syif Pagi (Asrama)',
+        tasks: [
+            { m: "5:30 pg", t: "Mengejutkan murid bangun tidur", c: "Rondaan bilik asrama" },
+            { m: "", t: "Memastikan murid mandi", c: "Pengawasan bilik air" },
+            { m: "", t: "Membimbing dan memastikan semua murid bersiap dan memakai pakaian sekolah", c: "" },
+            { m: "", t: "Membimbing murid mengambil wudhu' dan solat Subuh secara berjemaah", c: "" },
+            { m: "", t: "Membimbing murid-murid mengemas bilik", c: "" },
+            { m: "", t: "Membasuh pakaian murid", c: "" },
+            { m: "", t: "Membimbing murid menyusun selipar masing-masing di rak yang disediakan", c: "" },
+            { m: "6:55 pg", t: "Memastikan dan membimbing murid-murid beratur ke dewan makan untuk sarapan pagi", c: "" },
+            { m: "7:10 pg", t: "Tamat Syif Pagi", c: "Serah tugas kepada syif seterusnya" }
+        ]
+    },
+    
+    'SYIF_PETANG': {
+        label: 'Template Syif Petang (Asrama)',
+        tasks: [
+            { m: "12:50 tgh", t: "Memantau dan bersama-sama murid mengemas bilik masing-masing", c: "" },
+            { m: "", t: "Membimbing murid berwudhuk dan solat Zohor berjemaah", c: "" },
+            { m: "", t: "Beriadah bersama murid sambil melakukan aktiviti kecergasan asrama", c: "" },
+            { m: "4:00 ptg", t: "Memantau murid semasa minum petang", c: "" },
+            { m: "", t: "Membimbing murid berwudhuk dan solat Asar berjemaah", c: "" },
+            { m: "", t: "Beriadah bersama murid", c: "" },
+            { m: "6:00 ptg", t: "Memantau murid mengurus diri", c: "" },
+            { m: "", t: "Mencuci dan menjemur pakaian", c: "" },
+            { m: "", t: "Memantau murid semasa makan malam", c: "" },
+            { m: "", t: "Membimbing murid berwudhuk dan solat Maghrib berjemaah", c: "" },
+            { m: "8:00 mlm", t: "Rehat", c: "" },
+            { m: "9:00 mlm", t: "Memantau dan bersama-sama murid beriadah di bilik TV", c: "" },
+            { m: "", t: "Memantau murid semasa minum malam", c: "" },
+            { m: "", t: "Membimbing murid berwudhuk dan solat Isyak berjemaah", c: "" },
+            { m: "", t: "Mengagihkan pakaian murid", c: "" },
+            { m: "", t: "Memantau murid ke tandas dan menggosok gigi", c: "" },
+            { m: "", t: "Memastikan murid masuk tidur", c: "" },
+            { m: "10:00 mlm", t: "Tamat Syif Petang", c: "Serah tugas kepada syif malam" }
+        ]
+    },
+    
+    'SYIF_MALAM': {
+        label: 'Template Syif Malam (Asrama)',
+        tasks: [
+            { m: "9:50 mlm", t: "Tiba di sekolah", c: "" },
+            { m: "10:00 mlm", t: "Membimbing dan memastikan murid ke tandas untuk memberus gigi serta bersuci sebelum masuk tidur", c: "" },
+            { m: "", t: "Memastikan murid tidur dan lampu ditutup", c: "" },
+            { m: "", t: "Mencuci bekas air dan peralatan lain yang berkaitan", c: "" },
+            { m: "", t: "Memasak air untuk tambahan", c: "" },
+            { m: "", t: "Menggosok pakaian sekolah murid", c: "" },
+            { m: "", t: "Memastikan keperluan murid iaitu pakaian dan peralatan sekolah mencukupi dan tersedia", c: "" },
+            { m: "", t: "Membuat rondaan dan memastikan pintu masuk asrama telah berkunci", c: "" },
+            { m: "1:00 pg", t: "Rehat", c: "" },
+            { m: "2:00 pg", t: "Membuat rondaan setiap bilik dan memantau persekitaran asrama dari masa ke semasa", c: "" },
+            { m: "5:30 pg", t: "Mengejutkan murid bangun tidur", c: "Serah tugas kepada syif pagi" }
+        ]
+    },
+    
+    'PPM_PRA': {
+        label: 'Template PPM Pra',
+        tasks: [
+            { m: "7:05 pg", t: "Membuka kelas dan menyambut kedatangan murid", c: "" },
+            { m: "", t: "Merekod kehadiran murid", c: "" },
+            { m: "", t: "Mengawasi murid sebelum kehadiran guru", c: "" },
+            { m: "", t: "Menyediakan minum pagi", c: "Contoh: Biskut Oat + Susu" },
+            { m: "", t: "Menyediakan sarapan", c: "Contoh: Nasi Ayam + Buah Epal" },
+            { m: "", t: "Mengurus murid semasa dan selepas makan", c: "" },
+            { m: "", t: "Mengawasi murid semasa aktiviti menggosok gigi", c: "" },
+            { m: "", t: "Membantu guru semasa pengajaran dan pembelajaran", c: "" },
+            { m: "", t: "Mengawasi murid semasa ke tandas", c: "" },
+            { m: "", t: "Mengawasi murid semasa aktiviti di luar kelas", c: "" },
+            { m: "5:20 ptg", t: "Mengawasi murid ketika pulang", c: "" },
+            { m: "", t: "Mencuci dan mengemas peralatan makan murid", c: "" },
+            { m: "", t: "Mencuci dan mengemas ruang dapur, kelas dan tandas", c: "" },
+            { m: "", t: "Membersih ruang persekitaran luar kelas", c: "" },
+            { m: "", t: "Merancang penyediaan menu untuk hari berikutnya", c: "" },
+            { m: "", t: "Memastikan kelas teratur, kemas dan selamat sebelum pulang", c: "" }
+        ]
+    }
+};
+
+
         // TEMPLATE RUTIN PPM (untuk auto-fill)
         const DEFAULT_TEMPLATE = [
             { m: "06:50 - 07:00", t: "Penyambutan Murid Di Pintu Masuk Sekolah", c: "Memantau kedatangan murid" },
@@ -764,11 +870,15 @@ const formatTime12Hour = (time24) => {
                     setTasks(updated);
                 };
 
-                const loadTemplate = () => {
-                    if (window.confirm("Muat template rutin harian? Data sedia ada akan diganti.")) {
-                        setTasks(DEFAULT_TEMPLATE.map(t => ({ ...t })));
-                    }
-                };
+               const [selectedTemplate, setSelectedTemplate] = useState('PPM_KELAS_1');
+
+const loadTemplate = () => {
+    const templateData = TEMPLATE_OPTIONS[selectedTemplate];
+    if (window.confirm(`Muat ${templateData.label}? Data sedia ada akan diganti.`)) {
+        setTasks(templateData.tasks.map(t => ({ ...t })));
+    }
+};
+
 
                 const clearDraft = () => {
                     localStorage.removeItem('ppm_log_draft');
@@ -922,18 +1032,32 @@ const formatTime12Hour = (time24) => {
 
                                 {/* Section 2: Tasks (Dynamic Cards) */}
                                 <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="font-black text-slate-700 uppercase text-xs tracking-widest flex items-center">
-                                            <Icon name="ListTodo" size={16} className="mr-2"/> Perihal Tugasan
-                                        </h4>
-                                        <button 
-                                            type="button"
-                                            onClick={loadTemplate}
-                                            className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center"
-                                        >
-                                            <Icon name="Download" size={14} className="mr-1"/> Muat Template
-                                        </button>
-                                    </div>
+                                  div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <h4 className="font-black text-slate-700 uppercase text-xs tracking-widest flex items-center">
+        <Icon name="ListTodo" size={16} className="mr-2"/> Perihal Tugasan
+    </h4>
+    
+    {/* ✅ DROPDOWN SELECTOR */}
+    <div className="flex items-center gap-2">
+        <select 
+            value={selectedTemplate}
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+            className="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+        >
+            {Object.entries(TEMPLATE_OPTIONS).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+            ))}
+        </select>
+        
+        <button 
+            type="button"
+            onClick={loadTemplate}
+            className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg flex items-center whitespace-nowrap"
+        >
+            <Icon name="Download" size={14} className="mr-1"/> Muat Template
+        </button>
+    </div>
+</div>
 
                                     <div className="space-y-3">
                                         {tasks.map((task, idx) => (
