@@ -42,6 +42,16 @@
             { m: "12:40 - 14:00", t: "Rehat Makan Tengahari dan Solat", c: "Bertugas di kantin dan surau" },
             { m: "14:00 - 16:05", t: "Membantu guru membimbing dan mengawal tingkah laku murid sewaktu PdPc", c: "Bilik Darjah / Kawasan Sekolah" },
         ];
+
+        // ✅ PINDAHKAN KE GLOBAL SCOPE
+const formatTime12Hour = (time24) => {
+    if (!time24) return '-';
+    const [hours, minutes] = time24.split(':');
+    let hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'p.m.' : 'a.m.';
+    hour = hour % 12 || 12;
+    return `${hour}.${minutes} ${ampm}`;
+};
         
         // Fixed Icon Component Wrapper for Lucide
         const Icon = ({ name, size = 20, className = "" }) => {
@@ -184,19 +194,20 @@
 
             // --- APP COMPONENTS ---
 
-            const SidebarItem = ({ id, icon, label, roles = [] }) => {
+    const SidebarItem = ({ id, icon, label }) => {
+    const isActive = subPage === id;
     return (
         <button 
             onClick={() => {
                 setSubPage(id);
-                // Tambah baris ini - auto close pada mobile
-                if (window.innerWidth < 768) {
-                    setSidebarHidden(true);
-                }
+                if (window.innerWidth < 768) setSidebarHidden(true);
             }}
-            className={`...`}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                isActive ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'
+            }`}
         >
-            {/* ... */}
+            <Icon name={icon} size={20} />
+            <span className="text-sm font-bold">{label}</span>
         </button>
     );
 };
@@ -959,7 +970,10 @@
                 const [filterWeek, setFilterWeek] = useState('All');
                 const [viewingReport, setViewingReport] = useState(null);
 
-                const ViewLogsModal = ({ report, onClose }) => (
+                const ViewLogsModal = ({ report, onClose }) => 
+
+                    if (!report) return null;
+                
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 overflow-y-auto">
         <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-6 rounded-t-3xl flex justify-between items-center z-10">
@@ -1050,16 +1064,7 @@
         </div>
     </div>
 );
-                 if (!report) return null;
-    
-    return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200]...">
-            <div className="bg-white w-full max-w-5xl rounded-3xl...">
-                {/* content */}
-            </div>
-        </div>
-    );
-};
+                 
 
 
                 
