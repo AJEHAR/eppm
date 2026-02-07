@@ -1494,7 +1494,7 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         fetchAllUsers();
     }, []);
 
-    cconst fetchAllUsers = async (retryCount = 0) => {
+    const fetchAllUsers = async (retryCount = 0) => {
     setLoadingUsers(true);
     try {
         const res = await callAPI('getAllUsersForAdmin', { requesterId: user.uid });
