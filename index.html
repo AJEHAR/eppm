@@ -1264,7 +1264,6 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         if (user.role === 'GPK') {
             fetchLatestWeek();
         } else if (user.role === 'Admin' || user.role === 'User') {
-            // Admin/User tetap guna existing getReports
             setLoading(false);
         }
     }, []);
@@ -1276,7 +1275,6 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         if (res.success) {
             setSelectedWeek(res.weekNum);
             setSelectedYear(res.year);
-            // Auto fetch dashboard
             fetchGPKDashboard(res.weekNum, res.year);
         } else {
             setLoading(false);
@@ -1307,13 +1305,11 @@ const SidebarItem = ({ id, icon, label, roles }) => {
             const res = await callAPI('reviewReport', { reportId: reportId, gpkName: user.fullName });
             if (res.success) {
                 notify("Laporan telah disahkan.");
-                // Refresh data
                 fetchGPKDashboard(selectedWeek, selectedYear);
             }
         }
     };
 
-    // Calculate summary stats
     const stats = {
         total: ppmData.length,
         reviewed: ppmData.filter(p => p.displayStatus === 'Telah Disemak').length,
@@ -1322,117 +1318,111 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         notCreated: ppmData.filter(p => p.displayStatus === 'Belum Cipta').length
     };
 
-    // Modal untuk view logs
-    const ViewLogsModal = ({ report, onClose }) => {
-        if (!report) return null;
-        
-        return (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
-                    <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-6 rounded-t-3xl flex justify-between items-center z-10">
-                        <div>
-                            <h3 className="font-black text-xl">Log Harian - Minggu {selectedWeek} ({selectedYear})</h3>
-                            <p className="text-sm opacity-80">PPM: {report.fullName}</p>
-                        </div>
-                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                            <Icon name="X" size={24}/>
-                        </button>
-                    </div>
-
-                    <div className="p-6 space-y-4">
-                        {report.report?.logs?.map((log, idx) => (
-                            <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
-                                <div className="bg-slate-100 px-4 py-2 border-b-2 border-slate-300">
-                                    <h5 className="font-bold text-slate-800">
-                                        Laporan Harian #{idx + 1} - {log.day}
-                                        <span className="ml-2 text-xs text-slate-500">
-                                            ({new Date(log.date).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })})
-                                        </span>
-                                    </h5>
-                                </div>
-
-                                <div className="bg-slate-800 px-4 py-2 border-b-2 border-slate-300">
-                                    <h6 className="font-bold text-white uppercase text-xs tracking-wider">
-                                        <Icon name="Calendar" size={14} className="inline mr-2"/> Maklumat Asas
-                                    </h6>
-                                </div>
-                                
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm min-w-[500px]">
-                                        <tbody>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">Nama Penuh</td>
-                                                <td className="p-3 font-semibold">{report.fullName}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
-                                                <td className="p-3 font-semibold">
-                                                    {new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                                    <span className="ml-2 text-slate-500">({log.day})</span>
-                                                </td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
-                                                <td className="p-3 font-semibold">{log.day}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
-                                                <td className="p-3 font-semibold">{log.location}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
-                                                <td className="p-3 font-semibold">{log.attendance}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
-                                                <td className="p-3 font-semibold">{log.startTime}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
-                                                <td className="p-3 font-semibold">{log.endTime}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div className="overflow-x-auto border-t-2 border-slate-300 mt-4">
-                                    <table className="w-full text-sm text-left min-w-[600px]">
-                                        <thead>
-                                            <tr className="bg-slate-700 text-white">
-                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>Masa</th>
-                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>Tugasan</th>
-                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>Catatan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {log.tasks?.map((t, ti) => (
-                                                <tr key={ti} className="bg-white hover:bg-slate-50">
-                                                    <td className="p-3 border border-slate-300 font-bold text-indigo-700">{t.m || '-'}</td>
-                                                    <td className="p-3 border border-slate-300 font-medium text-slate-800">{t.t || '-'}</td>
-                                                    <td className="p-3 border border-slate-300 text-slate-600 italic">{t.c || '-'}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        ))}
-                        {(!report.report?.logs || report.report.logs.length === 0) && (
-                            <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium">
-                                Tiada log harian ditemui.
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
     // ========== RENDER GPK VIEW ==========
     if (user.role === 'GPK') {
         return (
             <div className="space-y-6">
-                {viewingReport && <ViewLogsModal report={viewingReport} onClose={() => setViewingReport(null)} />}
+                {/* VIEW LOGS MODAL */}
+                {viewingReport && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 overflow-y-auto">
+                        <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+                            <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-6 rounded-t-3xl flex justify-between items-center z-10">
+                                <div>
+                                    <h3 className="font-black text-xl">Log Harian - Minggu {selectedWeek} ({selectedYear})</h3>
+                                    <p className="text-sm opacity-80">PPM: {viewingReport.fullName}</p>
+                                </div>
+                                <button onClick={() => setViewingReport(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                    <Icon name="X" size={24}/>
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                {viewingReport.report?.logs?.map((log, idx) => (
+                                    <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
+                                        <div className="bg-slate-100 px-4 py-2 border-b-2 border-slate-300">
+                                            <h5 className="font-bold text-slate-800">
+                                                Laporan Harian #{idx + 1} - {log.day}
+                                                <span className="ml-2 text-xs text-slate-500">
+                                                    ({new Date(log.date).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })})
+                                                </span>
+                                            </h5>
+                                        </div>
+
+                                        <div className="bg-slate-800 px-4 py-2 border-b-2 border-slate-300">
+                                            <h6 className="font-bold text-white uppercase text-xs tracking-wider">
+                                                <Icon name="Calendar" size={14} className="inline mr-2"/> Maklumat Asas
+                                            </h6>
+                                        </div>
+                                        
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm min-w-[500px]">
+                                                <tbody>
+                                                    <tr className="border-b border-slate-300">
+                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">Nama Penuh</td>
+                                                        <td className="p-3 font-semibold">{viewingReport.fullName}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-300">
+                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
+                                                        <td className="p-3 font-semibold">
+                                                            {new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                            <span className="ml-2 text-slate-500">({log.day})</span>
+                                                        </td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-300">
+                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
+                                                        <td className="p-3 font-semibold">{log.day}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-300">
+                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
+                                                        <td className="p-3 font-semibold">{log.location}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-300">
+                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
+                                                        <td className="p-3 font-semibold">{log.attendance}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-300">
+                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
+                                                        <td className="p-3 font-semibold">{log.startTime}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
+                                                        <td className="p-3 font-semibold">{log.endTime}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div className="overflow-x-auto border-t-2 border-slate-300 mt-4">
+                                            <table className="w-full text-sm text-left min-w-[600px]">
+                                                <thead>
+                                                    <tr className="bg-slate-700 text-white">
+                                                        <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>Masa</th>
+                                                        <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>Tugasan</th>
+                                                        <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>Catatan</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {log.tasks?.map((t, ti) => (
+                                                        <tr key={ti} className="bg-white hover:bg-slate-50">
+                                                            <td className="p-3 border border-slate-300 font-bold text-indigo-700">{t.m || '-'}</td>
+                                                            <td className="p-3 border border-slate-300 font-medium text-slate-800">{t.t || '-'}</td>
+                                                            <td className="p-3 border border-slate-300 text-slate-600 italic">{t.c || '-'}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!viewingReport.report?.logs || viewingReport.report.logs.length === 0) && (
+                                    <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium">
+                                        Tiada log harian ditemui.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Header dengan Week Selector */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -1683,7 +1673,14 @@ const SidebarItem = ({ id, icon, label, roles }) => {
     }
 
     // ========== EXISTING VIEW FOR ADMIN/USER (UNCHANGED) ==========
-    // (Keep existing code for Admin/User below this line)
+    // If you have Admin/User specific view, keep it here
+    // Otherwise, return empty div
+    return (
+        <div className="text-center py-20 text-slate-400">
+            <p className="font-bold">Paparan untuk Admin/User belum dikonfigurasi</p>
+        </div>
+    );
+};
 
             const UserManagement = () => {
     const [allUsers, setAllUsers] = useState([]);
