@@ -1949,7 +1949,7 @@ useEffect(() => {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                        <button>
+                        <button
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
                             className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
@@ -1958,7 +1958,7 @@ useEffect(() => {
                                     : 'bg-indigo-600 text-white hover:bg-indigo-700'
                             }`}
 
-                        
+                        >
                             <Icon name="ChevronLeft" size={16} className="inline mr-1" />
                             Sebelum
                         </button>
