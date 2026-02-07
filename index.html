@@ -1021,20 +1021,19 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                                                 </td>
                                             </tr>
                                             
-                                           {/* Hari - Auto Fill */}
-<tr className="border-b border-slate-300">
-<td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
-<td className="p-3">
-<input 
-    name="day"
-    type="text"
-    value={autoDay}
-    readOnly
-    className="w-full p-2 border border-slate-300 rounded bg-slate-100 font-semibold"
-/>
-</td>
-</tr>
-
+                                            {/* Hari - Auto Fill */}
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
+                                                <td className="p-3">
+                                                    <input 
+                                                        name="day"
+                                                        type="text" 
+                                                        value={autoDay}
+                                                        readOnly
+                                                        className="w-full font-semibold text-slate-700"
+                                                    />
+                                                </td>
+                                            </tr>
                                             
                                             {/* Lokasi */}
                                             <tr className="border-b border-slate-300">
