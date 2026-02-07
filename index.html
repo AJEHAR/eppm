@@ -87,6 +87,48 @@ const formatTime12Hour = (time24) => {
             );
         };
 
+         const StatusBanner = ({ status }) => {
+            if (status === 'Active') return null;
+            
+            const bannerConfig = {
+                'Pending': {
+                    bg: 'bg-orange-50 border-orange-200',
+                    text: 'text-orange-700',
+                    icon: 'Clock',
+                    title: '⏳ AKAUN MENUNGGU KELULUSAN ADMIN',
+                    message: 'Anda boleh melihat sistem tetapi tidak boleh membuat perubahan. Sila tunggu email pengesahan dari admin.'
+                },
+                'Suspended': {
+                    bg: 'bg-red-50 border-red-200',
+                    text: 'text-red-700',
+                    icon: 'AlertCircle',
+                    title: '⚠️ AKAUN ANDA TELAH DIGANTUNG',
+                    message: 'Akaun anda dalam status gantungan. Anda boleh melihat sistem tetapi tidak boleh membuat sebarang perubahan. Sila hubungi admin untuk maklumat lanjut.'
+                },
+                'Deleted': {
+                    bg: 'bg-slate-50 border-slate-200',
+                    text: 'text-slate-700',
+                    icon: 'XCircle',
+                    title: '❌ AKAUN TELAH DIHAPUSKAN',
+                    message: 'Akaun ini telah dihapuskan. Sila hubungi admin jika ini adalah kesilapan.'
+                }
+            };
+            
+            const config = bannerConfig[status] || bannerConfig['Pending'];
+            
+            return (
+                <div className={`${config.bg} border-2 ${config.text} rounded-2xl p-6 mb-6 animate-in fade-in duration-500`}>
+                    <div className="flex items-start gap-4">
+                        <Icon name={config.icon} size={24} className="flex-shrink-0 mt-1" />
+                        <div>
+                            <h3 className="font-black text-lg mb-2">{config.title}</h3>
+                            <p className="text-sm font-medium opacity-90">{config.message}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         function App() {
             const [page, setPage] = useState('landing'); 
             const [sidebarHidden, setSidebarHidden] = useState(true);
@@ -175,9 +217,10 @@ const formatTime12Hour = (time24) => {
 
                 const res = await callAPI('signup', data);
                 if (res.success) {
-                    notify("Pendaftaran berjaya! Sila login.");
-                    setPage('login');
-                } else {
+    notify(res.message || "Pendaftaran berjaya! Sila login.");
+    setPage('login');
+}
+                else {
                     notify(res.message, "error");
                 }
             };
@@ -191,7 +234,10 @@ const formatTime12Hour = (time24) => {
 
             // --- APP COMPONENTS ---
 
-    const SidebarItem = ({ id, icon, label }) => {
+const SidebarItem = ({ id, icon, label, roles }) => {
+    // If roles specified, check if user has access
+    if (roles && !roles.includes(user?.role)) return null;
+    
     const isActive = subPage === id;
     return (
         <button 
@@ -499,13 +545,18 @@ const formatTime12Hour = (time24) => {
                 <div className="flex gap-2">
                     {/* ✅ BUTANG TAMBAH LOG - Hanya untuk Draft */}
                     {activeReport.status === 'Draft' && (
-                        <button 
-                            onClick={() => setShowLogForm(true)} 
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-100"
-                        >
-                            <Icon name="Plus" size={16}/> Tambah Log
-                        </button>
-                    )}
+    <button 
+        onClick={() => setShowLogForm(true)} 
+        disabled={user.status !== 'Active'}
+        className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg ${
+            user.status === 'Active'
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+        }`}
+    >
+        <Icon name="Plus" size={16}/> Tambah Log
+    </button>
+)}
                     
                     {/* ✅ BUTANG TARIK SEMULA - Hanya untuk Submitted */}
                     {activeReport.status === 'Submitted' && user.role === 'User' && (
@@ -533,24 +584,24 @@ const formatTime12Hour = (time24) => {
                         <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b-2 border-slate-300">
                             <h5 className="font-bold text-slate-800">Laporan harian {log.day}</h5>
                             {/* ✅ BUTANG EDIT/DELETE - Hanya untuk Draft */}
-                            {activeReport.status === 'Draft' && (
-                                <div className="flex gap-2">
-                                    <button 
-                                        type="button"
-                                        onClick={() => handleEditLog(log)}
-                                        className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
-                                    >
-                                        <Icon name="Edit" size={14}/> EDIT
-                                    </button>
-                                    <button 
-                                        type="button"
-                                        onClick={() => handleDeleteLog(log.logId)}
-                                        className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1"
-                                    >
-                                        <Icon name="Trash2" size={14}/> DELETE
-                                    </button>
-                                </div>
-                            )}
+                            {activeReport.status === 'Draft' && user.status === 'Active' && (
+    <div className="flex gap-2">
+        <button 
+            type="button"
+            onClick={() => handleEditLog(log)}
+            className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
+        >
+            <Icon name="Edit" size={14}/> EDIT
+        </button>
+        <button 
+            type="button"
+            onClick={() => handleDeleteLog(log.logId)}
+            className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1"
+        >
+            <Icon name="Trash2" size={14}/> DELETE
+        </button>
+    </div>
+)}
                         </div>
 
                                     {/* Maklumat Asas - Simple Table Like Image 1 */}
@@ -626,11 +677,19 @@ const formatTime12Hour = (time24) => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
-                {user.role === 'User' && (
-                    <button onClick={() => setView('createFolder')} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg shadow-indigo-100 hover:-translate-y-1 transition-transform">
-                        <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
-                    </button>
-                )}
+             {user.role === 'User' && (
+    <button 
+        onClick={() => setView('createFolder')} 
+        disabled={user.status !== 'Active'}
+        className={`px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform ${
+            user.status === 'Active' 
+                ? 'bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1' 
+                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+        }`}
+    >
+        <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
+    </button>
+)}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -671,13 +730,18 @@ const formatTime12Hour = (time24) => {
                                 
                                 {/* Hantar (Draft only) */}
                                 {r.status === 'Draft' && user.role === 'User' && (
-                                    <button 
-                                        onClick={() => confirmSubmit(r.reportId)} 
-                                        className="py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors"
-                                    >
-                                        Hantar
-                                    </button>
-                                )}
+    <button 
+        onClick={() => confirmSubmit(r.reportId)} 
+        disabled={user.status !== 'Active'}
+        className={`py-2.5 rounded-xl font-bold text-xs transition-colors ${
+            user.status === 'Active'
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+        }`}
+    >
+        Hantar
+    </button>
+)}
                                 
                                 {/* ✅ Tarik Semula (Submitted only) */}
                                 {r.status === 'Submitted' && user.role === 'User' && (
@@ -1392,14 +1456,18 @@ const formatTime12Hour = (time24) => {
                                 Lihat Log
                             </button>
                             {r.status === 'Submitted' && user.role === 'GPK' && (
-                                <button 
-                                    onClick={() => handleReview(r.reportId)} 
-                                    className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-50 flex items-center justify-center gap-2"
-                                >
-                                    <Icon name="CheckCircle" size={16}/>
-                                    Sahkan
-                                </button>
-                            )}
+    <button 
+        onClick={() => handleReview(r.reportId)} 
+        disabled={user.status !== 'Active'}
+        className={`px-4 py-1.5 rounded-xl text-xs font-bold shadow-lg ${
+            user.status === 'Active'
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-50'
+                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+        }`}
+    >
+        Sahkan
+    </button>
+)}
                         </div>
                     </div>
                 ))}
@@ -1413,6 +1481,374 @@ const formatTime12Hour = (time24) => {
     );
 };    
 
+            const UserManagement = () => {
+    const [allUsers, setAllUsers] = useState([]);
+    const [filterStatus, setFilterStatus] = useState('All');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showPasswordFor, setShowPasswordFor] = useState(null);
+
+    useEffect(() => {
+        fetchAllUsers();
+    }, []);
+
+    const fetchAllUsers = async () => {
+        const res = await callAPI('getAllUsersForAdmin', { requesterId: user.uid });
+        if (res.success) {
+            setAllUsers(res.users);
+        }
+    };
+
+    const handleApprove = async (userId) => {
+        if (window.confirm("Luluskan pengguna ini?")) {
+            const res = await callAPI('approveUser', { adminId: user.uid, userId });
+            if (res.success) {
+                notify("Pengguna berjaya diluluskan!");
+                fetchAllUsers();
+            } else {
+                notify(res.message, "error");
+            }
+        }
+    };
+
+    const handleReject = async (userId) => {
+        if (window.confirm("Tolak dan hapus permohonan ini? Email penolakan akan dihantar.")) {
+            const res = await callAPI('rejectUser', { adminId: user.uid, userId });
+            if (res.success) {
+                notify("Permohonan ditolak dan email dihantar");
+                fetchAllUsers();
+            } else {
+                notify(res.message, "error");
+            }
+        }
+    };
+
+    const handleSuspend = async (userId) => {
+        if (window.confirm("Gantung akaun ini? User masih boleh login tapi read-only.")) {
+            const res = await callAPI('suspendUser', { adminId: user.uid, userId });
+            if (res.success) {
+                notify("Akaun berjaya digantung");
+                fetchAllUsers();
+            } else {
+                notify(res.message, "error");
+            }
+        }
+    };
+
+    const handleReactivate = async (userId) => {
+        if (window.confirm("Aktifkan semula akaun ini?")) {
+            const res = await callAPI('reactivateUser', { adminId: user.uid, userId });
+            if (res.success) {
+                notify("Akaun berjaya diaktifkan semula");
+                fetchAllUsers();
+            } else {
+                notify(res.message, "error");
+            }
+        }
+    };
+
+    const handleDelete = async (userId) => {
+        if (window.confirm("AMARAN: Hapus akaun ini secara kekal? Laporan user akan kekal untuk audit trail.")) {
+            const res = await callAPI('softDeleteUser', { adminId: user.uid, userId });
+            if (res.success) {
+                notify("Akaun berjaya dihapuskan");
+                fetchAllUsers();
+            } else {
+                notify(res.message, "error");
+            }
+        }
+    };
+
+    const filteredUsers = allUsers
+        .filter(u => filterStatus === 'All' || u.status === filterStatus)
+        .filter(u => 
+            u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            u.email.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+    const pendingCount = allUsers.filter(u => u.status === 'Pending').length;
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl font-black text-slate-800">Pengurusan Akaun</h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                        {pendingCount > 0 && (
+                            <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs font-bold">
+                                {pendingCount} Menunggu Kelulusan
+                            </span>
+                        )}
+                    </p>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col md:flex-row gap-3">
+                    <input 
+                        type="text"
+                        placeholder="🔍 Cari nama, username, email..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="px-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                    <select 
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="All">Semua Status</option>
+                        <option value="Pending">⏳ Pending</option>
+                        <option value="Active">✅ Active</option>
+                        <option value="Suspended">⏸️ Suspended</option>
+                        <option value="Deleted">🗑️ Deleted</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                            <tr className="text-slate-400 text-xs font-black uppercase">
+                                <th className="px-6 py-4">Pengguna</th>
+                                <th className="px-6 py-4">Kata Laluan</th>
+                                <th className="px-6 py-4">Jawatan</th>
+                                <th className="px-6 py-4">GPK Penilai</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-center">Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {filteredUsers.map(u => (
+                                <tr key={u.uid} className="hover:bg-slate-50/30 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
+                                                {u.profilePic ? (
+                                                    <img src={u.profilePic} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-indigo-600 font-bold text-sm uppercase">
+                                                        {u.fullName.substring(0,2)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-800">{u.fullName}</p>
+                                                <p className="text-xs text-slate-400">@{u.username}</p>
+                                                <p className="text-xs text-slate-400">{u.email}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <code className="bg-slate-100 px-2 py-1 rounded text-xs font-mono">
+                                                {showPasswordFor === u.uid ? u.password : '••••••••••••'}
+                                            </code>
+                                            <button 
+                                                onClick={() => setShowPasswordFor(showPasswordFor === u.uid ? null : u.uid)}
+                                                className="p-1 hover:bg-slate-100 rounded transition-colors"
+                                            >
+                                                <Icon name={showPasswordFor === u.uid ? "EyeOff" : "Eye"} size={14} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="text-xs font-bold text-slate-600">{u.position}</span>
+                                        <p className="text-[10px] text-slate-400 uppercase">{u.role}</p>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="text-xs text-slate-500">{u.reportingGpk || '-'}</span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                                            u.status === 'Pending' ? 'bg-orange-100 text-orange-700' :
+                                            u.status === 'Active' ? 'bg-emerald-100 text-emerald-700' :
+                                            u.status === 'Suspended' ? 'bg-slate-100 text-slate-600' :
+                                            'bg-red-100 text-red-700'
+                                        }`}>
+                                            {u.status}
+                                        </span>
+                                        {u.approvedBy && (
+                                            <p className="text-[10px] text-slate-400 mt-1">
+                                                Oleh: {u.approvedBy}
+                                            </p>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center justify-center gap-2 flex-wrap">
+                                            {u.status === 'Pending' && (
+                                                <>
+                                                    <button 
+                                                        onClick={() => handleApprove(u.uid)}
+                                                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 flex items-center gap-1"
+                                                        title="Luluskan"
+                                                    >
+                                                        <Icon name="CheckCircle" size={14}/> Lulus
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleReject(u.uid)}
+                                                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1"
+                                                        title="Tolak"
+                                                    >
+                                                        <Icon name="XCircle" size={14}/> Tolak
+                                                    </button>
+                                                </>
+                                            )}
+                                            {u.status === 'Active' && u.role !== 'Admin' && (
+                                                <button 
+                                                    onClick={() => handleSuspend(u.uid)}
+                                                    className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-bold hover:bg-orange-700 flex items-center gap-1"
+                                                    title="Gantung"
+                                                >
+                                                    <Icon name="Pause" size={14}/> Gantung
+                                                </button>
+                                            )}
+                                            {u.status === 'Suspended' && (
+                                                <button 
+                                                    onClick={() => handleReactivate(u.uid)}
+                                                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
+                                                    title="Aktif Semula"
+                                                >
+                                                    <Icon name="Play" size={14}/> Aktif
+                                                </button>
+                                            )}
+                                            {u.role !== 'Admin' && u.status !== 'Deleted' && (
+                                                <button 
+                                                    onClick={() => handleDelete(u.uid)}
+                                                    className="px-3 py-1.5 bg-slate-600 text-white rounded-lg text-xs font-bold hover:bg-slate-700"
+                                                    title="Hapus"
+                                                >
+                                                    <Icon name="Trash2" size={14}/>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {filteredUsers.length === 0 && (
+                    <div className="py-20 text-center text-slate-300 italic">
+                        Tiada pengguna dijumpai
+                    </div>
+                )}
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-4">
+                {filteredUsers.map(u => (
+                    <div key={u.uid} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
+                                    {u.profilePic ? (
+                                        <img src={u.profilePic} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-indigo-600 font-bold uppercase">
+                                            {u.fullName.substring(0,2)}
+                                        </span>
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-slate-800">{u.fullName}</p>
+                                    <p className="text-xs text-slate-400">@{u.username}</p>
+                                </div>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                                u.status === 'Pending' ? 'bg-orange-100 text-orange-700' :
+                                u.status === 'Active' ? 'bg-emerald-100 text-emerald-700' :
+                                u.status === 'Suspended' ? 'bg-slate-100 text-slate-600' :
+                                'bg-red-100 text-red-700'
+                            }`}>
+                                {u.status}
+                            </span>
+                        </div>
+
+                        <div className="space-y-2 text-sm mb-4">
+                            <div className="flex justify-between">
+                                <span className="text-slate-400 font-bold">Email:</span>
+                                <span className="text-slate-700">{u.email}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-slate-400 font-bold">Password:</span>
+                                <div className="flex items-center gap-2">
+                                    <code className="bg-slate-100 px-2 py-1 rounded text-xs">
+                                        {showPasswordFor === u.uid ? u.password : '••••••••'}
+                                    </code>
+                                    <button 
+                                        onClick={() => setShowPasswordFor(showPasswordFor === u.uid ? null : u.uid)}
+                                        className="p-1"
+                                    >
+                                        <Icon name={showPasswordFor === u.uid ? "EyeOff" : "Eye"} size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-slate-400 font-bold">Jawatan:</span>
+                                <span className="text-slate-700">{u.position}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-slate-400 font-bold">GPK:</span>
+                                <span className="text-slate-700">{u.reportingGpk || '-'}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                            {u.status === 'Pending' && (
+                                <>
+                                    <button 
+                                        onClick={() => handleApprove(u.uid)}
+                                        className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 flex items-center justify-center gap-1"
+                                    >
+                                        <Icon name="CheckCircle" size={14}/> Lulus
+                                    </button>
+                                    <button 
+                                        onClick={() => handleReject(u.uid)}
+                                        className="flex-1 px-3 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 flex items-center justify-center gap-1"
+                                    >
+                                        <Icon name="XCircle" size={14}/> Tolak
+                                    </button>
+                                </>
+                            )}
+                            {u.status === 'Active' && u.role !== 'Admin' && (
+                                <button 
+                                    onClick={() => handleSuspend(u.uid)}
+                                    className="flex-1 px-3 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold hover:bg-orange-700 flex items-center justify-center gap-1"
+                                >
+                                    <Icon name="Pause" size={14}/> Gantung
+                                </button>
+                            )}
+                            {u.status === 'Suspended' && (
+                                <button 
+                                    onClick={() => handleReactivate(u.uid)}
+                                    className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 flex items-center justify-center gap-1"
+                                >
+                                    <Icon name="Play" size={14}/> Aktif
+                                </button>
+                            )}
+                            {u.role !== 'Admin' && u.status !== 'Deleted' && (
+                                <button 
+                                    onClick={() => handleDelete(u.uid)}
+                                    className="px-3 py-2 bg-slate-600 text-white rounded-xl text-xs font-bold hover:bg-slate-700 flex items-center justify-center gap-1"
+                                >
+                                    <Icon name="Trash2" size={14}/> Hapus
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+                {filteredUsers.length === 0 && (
+                    <div className="py-20 text-center text-slate-300 italic bg-white rounded-2xl border-2 border-dashed">
+                        Tiada pengguna dijumpai
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
             const ProfilePage = ({ user, setUser, callAPI, notify }) => {
                 const [isEditing, setIsEditing] = useState(false);
                 const [showPicker, setShowPicker] = useState(false);
@@ -1477,9 +1913,20 @@ const formatTime12Hour = (time24) => {
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Username</p>
-                                            <p className="font-bold text-slate-700">@{user.username}</p>
-                                        </div>
+    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Username</p>
+    <p className="font-bold text-slate-700">@{user.username}</p>
+</div>
+<div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Status Akaun</p>
+    <span className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase mt-1 ${
+        user.status === 'Active' ? 'bg-emerald-100 text-emerald-700' :
+        user.status === 'Pending' ? 'bg-orange-100 text-orange-700' :
+        user.status === 'Suspended' ? 'bg-red-100 text-red-700' :
+        'bg-slate-100 text-slate-600'
+    }`}>
+        {user.status || 'Active'}
+    </span>
+</div>
                                         <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
                                             <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Emel</p>
                                             <p className="font-bold text-slate-700 truncate">{user.email || 'Tiada Emel'}</p>
@@ -1761,6 +2208,7 @@ const formatTime12Hour = (time24) => {
                             <SidebarItem id="moment" icon="Camera" label="Moment" />
                             <SidebarItem id="jana" icon="FileText" label="Jana Laporan" roles={['User', 'Admin']} />
                             <SidebarItem id="semakan" icon="ClipboardCheck" label="Semakan" roles={['GPK', 'Admin', 'User']} />
+                            {user?.role === 'Admin' && <SidebarItem id="management" icon="Users" label="Pengurusan Akaun" />}
                             <SidebarItem id="profile" icon="UserCircle" label="Profil Saya" />
                         </nav>
                         <div className="p-4 border-t border-slate-50">
@@ -1779,6 +2227,9 @@ const formatTime12Hour = (time24) => {
                             </div>
                         )}
 
+                         {/* Status Banner for Pending/Suspended Users */}
+    {user && user.status !== 'Active' && <StatusBanner status={user.status} />}
+
                         <header className="flex md:hidden items-center justify-between mb-8 pt-16">
                              <h1 className="text-xl font-black text-indigo-700 tracking-tighter">PPM SYSTEM</h1>
                              <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">{user?.username.substring(0,2).toUpperCase()}</div>
@@ -1795,6 +2246,7 @@ const formatTime12Hour = (time24) => {
                             )}
                             {subPage === 'jana' && <JanaLaporan />}
                             {subPage === 'semakan' && <SemakanLaporan />}
+                            {subPage === 'management' && user?.role === 'Admin' && <UserManagement />}
                             {subPage === 'profile' && (
                                 <ProfilePage 
                                     user={user} 
