@@ -102,15 +102,16 @@ const formatTime12Hour = (time24) => {
             const [savedUsername, setSavedUsername] = useState("");
 
             useEffect(() => {
-                const saved = localStorage.getItem('ppm_user');
-                if (saved) {
-                    const u = JSON.parse(saved);
-                    setUser(u);
-                    setPage('app');
-                    fetchReports(u);
-                }
-                fetchInitialData();
-            }, []);
+    const saved = localStorage.getItem('ppm_user');
+    if (saved) {
+        const u = JSON.parse(saved);
+        setReports([]);  // ← TAMBAH INI - Clear before fetch
+        setUser(u);
+        setPage('app');
+        fetchReports(u);
+    }
+    fetchInitialData();
+}, []);
 
             const notify = (msg, type = 'success') => {
                 setNotification({ msg, type });
@@ -147,18 +148,22 @@ const formatTime12Hour = (time24) => {
 
             // --- AUTH LOGIC ---
             const handleLogin = async (e) => {
-                e.preventDefault();
-                const data = Object.fromEntries(new FormData(e.target));
-                const res = await callAPI('login', data);
-                if (res.success) {
-                    setUser(res.user);
-                    localStorage.setItem('ppm_user', JSON.stringify(res.user));
-                    setPage('app');
-                    fetchReports(res.user);
-                } else {
-                    notify(res.message, "error");
-                }
-            };
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    
+    // ← TAMBAH INI - Clear old state before login
+    setReports([]);
+    
+    const res = await callAPI('login', data);
+    if (res.success) {
+        setUser(res.user);
+        localStorage.setItem('ppm_user', JSON.stringify(res.user));
+        setPage('app');
+        fetchReports(res.user);
+    } else {
+        notify(res.message, "error");
+    }
+};
 
             const handleSignup = async (e) => {
                 e.preventDefault();
@@ -180,6 +185,7 @@ const formatTime12Hour = (time24) => {
             const handleLogout = () => {
                 localStorage.removeItem('ppm_user');
                 setUser(null);
+                setReports([]); 
                 setPage('landing');
             };
 
