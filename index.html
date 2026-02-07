@@ -43,6 +43,19 @@ const formatTime12Hour = (time24) => {
     hour = hour % 12 || 12;
     return `${hour}.${minutes} ${ampm}`;
 };
+
+        const getDayNumber = (dayName) => {
+    const days = {
+        'Isnin': 1,
+        'Selasa': 2,
+        'Rabu': 3,
+        'Khamis': 4,
+        'Jumaat': 5,
+        'Sabtu': 6,
+        'Ahad': 7
+    };
+    return days[dayName] || 0;
+};
         
         // Fixed Icon Component Wrapper for Lucide
         const Icon = ({ name, size = 20, className = "" }) => {
@@ -327,7 +340,14 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {reports.slice(0,5).map((r, i) => (
+    {reports
+        .sort((a, b) => {
+            // Sort by year DESC, then weekNum DESC
+            if (b.year !== a.year) return b.year - a.year;
+            return b.weekNum - a.weekNum;
+        })
+        .slice(0,5)
+        .map((r, i) => (
                                         <tr key={i} className="group hover:bg-slate-50/50 transition-colors">
                                             <td className="py-4 font-bold text-slate-700">Minggu {r.weekNum} <span className="text-xs font-normal text-slate-400">({r.year})</span></td>
                                             <td className="py-4 text-sm text-slate-500">{r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : 'Belum Hantar'}</td>
@@ -578,11 +598,23 @@ const SidebarItem = ({ id, icon, label, roles }) => {
             />}
 
             <div className="space-y-4">
-                {activeReport.logs?.map((log, idx) => (
+    {activeReport.logs
+        ?.sort((a, b) => {
+            // Sort by date ascending (Isnin to Ahad)
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateA - dateB;
+        })
+        .map((log, idx) => (
                     <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
                         {/* Header dengan Butang Delete/Edit */}
                         <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b-2 border-slate-300">
-                            <h5 className="font-bold text-slate-800">Laporan harian {log.day}</h5>
+                            <h5 className="font-bold text-slate-800">
+    Laporan Harian Hari {getDayNumber(log.day)} - {log.day}
+    <span className="ml-2 text-xs text-slate-500">
+        ({new Date(log.date).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })})
+    </span>
+</h5>
                             {/* ✅ BUTANG EDIT/DELETE - Hanya untuk Draft */}
                             {activeReport.status === 'Draft' && user.status === 'Active' && (
     <div className="flex gap-2">
@@ -693,7 +725,13 @@ const SidebarItem = ({ id, icon, label, roles }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {reports.map((r) => (
+    {reports
+        .sort((a, b) => {
+            // Sort by year DESC, then weekNum DESC
+            if (b.year !== a.year) return b.year - a.year;
+            return b.weekNum - a.weekNum;
+        })
+        .map((r) => (
                     <div key={r.reportId} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500">
                         <div className="p-6">
                             <div className="flex justify-between items-start mb-4">
@@ -1235,7 +1273,14 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                     </div>
 
                     <div className="p-6 space-y-4">
-                        {report.logs?.map((log, idx) => (
+    {report.logs
+        ?.sort((a, b) => {
+            // Sort by date ascending (Isnin to Ahad)
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateA - dateB;
+        })
+        .map((log, idx) => (
                             <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
                                 <div className="bg-slate-100 px-4 py-2 border-b-2 border-slate-300">
                                     <h5 className="font-bold text-slate-800">Log Harian #{idx + 1}</h5>
@@ -1330,7 +1375,12 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         }
     };
 
-    const filtered = filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek);
+    const filtered = (filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek))
+    .sort((a, b) => {
+        // Sort by year DESC, then weekNum DESC
+        if (b.year !== a.year) return b.year - a.year;
+        return b.weekNum - a.weekNum;
+    });
 
     return (
         <div className="space-y-6">
