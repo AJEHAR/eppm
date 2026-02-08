@@ -397,8 +397,8 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                         day: fd.get('day'), // Auto-filled
                         location: fd.get('location'),
                         attendance: fd.get('attendance'),
-                        startTime: formatTime12Hour(fd.get('startTime')),  // ✅ TAMBAH formatTime12Hour()
-    endTime: formatTime12Hour(fd.get('endTime')),      // ✅ TAMBAH formatTime12Hour()
+                        startTime: fd.get('startTime'),  // Hantar format 24-jam sahaja
+endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                         tasks: taskRows
                     };
 
@@ -451,8 +451,8 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                         day: fd.get('day'),
                         location: fd.get('location'),
                         attendance: fd.get('attendance'),
-                        startTime: formatTime12Hour(fd.get('startTime')),  // ✅ TAMBAH formatTime12Hour()
-    endTime: formatTime12Hour(fd.get('endTime')),      // ✅ TAMBAH formatTime12Hour()
+                        startTime: fd.get('startTime'),  // Hantar format 24-jam sahaja
+endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                         tasks: taskRows
                     };
 
