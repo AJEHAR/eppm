@@ -2429,11 +2429,30 @@ const SemakanLaporan = () => {
                                         </div>
                                     </div>
 
-                                    {isSignup && (
+                                   {isSignup && (
                                         <>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Jawatan</label>
-                                                <select name="position" className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" required>
+                                                <select 
+                                                    name="position" 
+                                                    id="signupPosition"
+                                                    onChange={(e) => {
+                                                        const gpkSelect = document.getElementById('signupReportingGpk');
+                                                        const gpkLabel = document.getElementById('signupReportingGpkLabel');
+                                                        const noGpkOption = document.getElementById('noGpkOption');
+                                                        
+                                                        if (e.target.value === 'GPK') {
+                                                            gpkLabel.textContent = 'JABATAN / UNIT ANDA';
+                                                            if (noGpkOption) noGpkOption.style.display = 'none';
+                                                            gpkSelect.value = ''; // Reset selection
+                                                        } else {
+                                                            gpkLabel.textContent = 'GPK PENILAI';
+                                                            if (noGpkOption) noGpkOption.style.display = 'block';
+                                                        }
+                                                    }}
+                                                    className="w-full p-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                                                    required
+                                                >
                                                     <option value="">Pilih Jawatan</option>
                                                     <option value="PPM KELAS">PPM KELAS</option>
                                                     <option value="PPM ASRAMA">PPM ASRAMA</option>
@@ -2442,18 +2461,30 @@ const SemakanLaporan = () => {
                                                 </select>
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">GPK Penilai</label>
-                                                <select name="reportingGpk" className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                <label 
+                                                    id="signupReportingGpkLabel"
+                                                    className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest"
+                                                >
+                                                    GPK Penilai
+                                                </label>
+                                                <select 
+                                                    name="reportingGpk" 
+                                                    id="signupReportingGpk"
+                                                    className="w-full p-4 bg-slate-50 border-0 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    required
+                                                >
                                                     <option value="">Pilih GPK Penilai</option>
                                                     <option value="GPK PENTADBIRAN">GPK PENTADBIRAN</option>
                                                     <option value="GPK HAL EHWAL MURID">GPK HAL EHWAL MURID</option>
                                                     <option value="GPK KOKURIKULUM">GPK KOKURIKULUM</option>
-                                                    <option value="-">TIADA PENILAI</option>
+                                                    <option value="-" id="noGpkOption">TIADA PENILAI</option>
                                                 </select>
+                                                <p className="text-[9px] text-slate-400 italic ml-2 mt-1">
+                                                    <span id="signupHelpText">Pilih GPK yang akan menilai laporan anda</span>
+                                                </p>
                                             </div>
                                         </>
                                     )}
-
                                     {!isSignup && !isForgot && (
                                         <div className="flex items-center px-2 py-2">
                                             <label className="flex items-center cursor-pointer group">
