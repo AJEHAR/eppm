@@ -2011,88 +2011,6 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                 </div>
             );
 
-            // VERIFICATION SENT PAGE
-            if (page === 'verification-sent') {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-6">
-                        <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl text-center">
-                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Icon name="Mail" size={40} className="text-green-600" />
-                            </div>
-                            <h2 className="text-3xl font-black text-slate-800 mb-4">Semak Email Anda!</h2>
-                            <p className="text-slate-600 mb-6 leading-relaxed">
-                                Kami telah menghantar link verification ke email anda. Sila klik link tersebut untuk mengaktifkan akaun anda.
-                            </p>
-                            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 mb-6">
-                                <p className="text-sm text-amber-800 font-bold">
-                                    💡 Tip: Semak folder <strong>Spam</strong> jika anda tidak jumpa email tersebut.
-                                </p>
-                            </div>
-                            <p className="text-xs text-slate-400 mb-6">
-                                Link verification akan tamat tempoh dalam 24 jam.
-                            </p>
-                            <button 
-                                onClick={() => setPage('login')} 
-                                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black hover:bg-indigo-700 transition-colors"
-                            >
-                                Kembali ke Log Masuk
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
-
-            // NEED VERIFICATION PAGE (when trying to login without verifying)
-            if (page === 'need-verification') {
-                const pendingEmail = localStorage.getItem('ppm_pending_email') || '';
-                const [resending, setResending] = useState(false);
-
-                const handleResend = async () => {
-                    setResending(true);
-                    const res = await callAPI('resendVerification', { email: pendingEmail });
-                    setResending(false);
-                    if (res.success) {
-                        notify("✅ Link verification baharu telah dihantar!", "success");
-                    } else {
-                        notify(res.message, "error");
-                    }
-                };
-
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-orange-600 to-red-700 flex items-center justify-center p-6">
-                        <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl text-center">
-                            <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Icon name="AlertCircle" size={40} className="text-orange-600" />
-                            </div>
-                            <h2 className="text-3xl font-black text-slate-800 mb-4">Email Belum Diverify</h2>
-                            <p className="text-slate-600 mb-6 leading-relaxed">
-                                Akaun anda belum diaktifkan. Sila semak email anda untuk link verification.
-                            </p>
-                            {pendingEmail && (
-                                <div className="bg-slate-50 rounded-2xl p-4 mb-6">
-                                    <p className="text-sm text-slate-600">
-                                        📧 Email: <strong>{pendingEmail}</strong>
-                                    </p>
-                                </div>
-                            )}
-                            <button 
-                                onClick={handleResend}
-                                disabled={resending}
-                                className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black hover:bg-orange-700 transition-colors mb-3 disabled:opacity-50"
-                            >
-                                {resending ? 'Menghantar...' : '📤 Hantar Semula Link'}
-                            </button>
-                            <button 
-                                onClick={() => { setPage('login'); localStorage.removeItem('ppm_pending_email'); }} 
-                                className="w-full bg-slate-200 text-slate-700 py-4 rounded-2xl font-black hover:bg-slate-300 transition-colors"
-                            >
-                                Kembali ke Log Masuk
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
-
             if (page === 'login' || page === 'signup' || page === 'forgot') {
                 const isSignup = page === 'signup';
                 const isForgot = page === 'forgot';
@@ -2138,8 +2056,8 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                                             if (data.password.length !== 12) return notify("Password mesti tepat 12 aksara!", "error");
                                             const res = await callAPI('signup', data);
                                             if (res.success) {
-                                                notify("✅ " + res.message, "success");
-                                                setPage('verification-sent');
+                                                notify("Akaun anda berjaya didaftarkan");
+                                                setPage('login');
                                             } else {
                                                 notify(res.message, "error");
                                             }
@@ -2159,12 +2077,7 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                                                 setPage('app');
                                                 fetchReports(res.user);
                                             } else {
-                                                // Check if needs verification
-                                                if (res.needsVerification) {
-                                                    setPage('need-verification');
-                                                    localStorage.setItem('ppm_pending_email', res.email);
-                                                } else {
-                                                    notify(res.message || "Amaran: Username atau Password Salah!", "error");
+                                                notify("Amaran: Username atau Password Salah!", "error");
                                             }
                                         }
                                     }} 
