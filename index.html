@@ -35,14 +35,14 @@
     
 
         // ✅ PINDAHKAN KE GLOBAL SCOPE
-const formatTime12Hour = (time24) => {
+/*const formatTime12Hour = (time24) => {
     if (!time24) return '-';
     const [hours, minutes] = time24.split(':');
     let hour = parseInt(hours);
     const ampm = hour >= 12 ? 'p.m.' : 'a.m.';
     hour = hour % 12 || 12;
     return `${hour}.${minutes} ${ampm}`;
-};
+};*/
         
         // Fixed Icon Component Wrapper for Lucide
         const Icon = ({ name, size = 20, className = "" }) => {
@@ -638,11 +638,11 @@ endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                                             </tr>
                                             <tr className="border-b border-slate-300">
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
-                                                <td className="p-3 font-semibold">{formatTime12Hour(log.startTime)}</td>
+                                                <td className="p-3 font-semibold">{log.startTime || '-'}</td>
                                             </tr>
                                             <tr>
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
-                                                <td className="p-3 font-semibold">{formatTime12Hour(log.endTime)}</td>
+                                                <td className="p-3 font-semibold">{log.endTime || '-'}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -1276,11 +1276,11 @@ endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                                             </tr>
                                             <tr className="border-b border-slate-300">
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
-                                                <td className="p-3 font-semibold">{formatTime12Hour(log.startTime)}</td>
+                                                <td className="p-3 font-semibold">{log.startTime || '-'}</td>
                                             </tr>
                                             <tr>
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
-                                                <td className="p-3 font-semibold">{formatTime12Hour(log.endTime)}</td>
+                                                <td className="p-3 font-semibold">{log.endTime || '-'}</td>
                                             </tr>
                                         </tbody>
                                     </table>
