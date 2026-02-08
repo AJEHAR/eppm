@@ -2143,16 +2143,17 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                                         </>
                                     )}
 
-                                    {!isSignup && !isForgot && (
-                                        <div className="flex items-center px-2 py-2">
-                                            <label className="flex items-center cursor-pointer group">
-                                                <input type="checkbox" className="sr-only" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}/>
-                                                <div className={`w-10 h-6 rounded-full transition-colors ${rememberMe ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
-                                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${rememberMe ? 'translate-x-4' : ''}`}></div>
-                                                <span className="ml-3 text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600">Ingat Saya</span>
-                                            </label>
-                                        </div>
-                                    )}
+                                   {!isSignup && !isForgot && (
+    <div className="flex items-center px-2 py-2">
+        <label className="flex items-center cursor-pointer group">
+            <input type="checkbox" className="sr-only" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}/>
+            <div className="relative w-10 h-6 rounded-full transition-colors flex-shrink-0" style={{backgroundColor: rememberMe ? '#4f46e5' : '#e2e8f0'}}>
+                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${rememberMe ? 'translate-x-4' : ''}`}></div>
+            </div>
+            <span className="ml-3 text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600">Ingat Saya</span>
+        </label>
+    </div>
+)}
 
                                     <button 
                                         disabled={loading} 
