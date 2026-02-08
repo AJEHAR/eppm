@@ -590,595 +590,1387 @@
 /* PART 2C */
             
             // ==========================================
-            // JANA LAPORAN COMPONENT
-            // ==========================================
-            const JanaLaporan = () => {
-                const [view, setView] = useState('list');
-                const [activeReport, setActiveReport] = useState(null);
-                const [showLogForm, setShowLogForm] = useState(false);
-                const [editingLog, setEditingLog] = useState(null);
+// JANA LAPORAN COMPONENT
+// ==========================================
+// Main component for creating and managing weekly reports
+// Handles: folder creation, daily log viewing/editing, report submission
 
-                const handleCreateFolder = async (e) => {
-                    e.preventDefault();
-                    const d = Object.fromEntries(new FormData(e.target));
-                    const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
-                    if (res.success) {
-                        notify("Folder mingguan berjaya dicipta!");
-                        fetchReports(user);
-                        setView('list');
-                    } else {
-                        notify(res.message, "error");
-                    }
-                };
+const JanaLaporan = () => {
+    const [view, setView] = useState('list'); // 'list' | 'createFolder' | 'view'
+    const [activeReport, setActiveReport] = useState(null);
+    const [showLogForm, setShowLogForm] = useState(false);
+    const [editingLog, setEditingLog] = useState(null);
 
-                const handleAddLog = async (e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.target);
-                    
-                    const taskRows = [];
-                    let idx = 0;
-                    while (fd.has(`m${idx}`)) {
-                        const m = fd.get(`m${idx}`);
-                        const t = fd.get(`t${idx}`);
-                        const c = fd.get(`c${idx}`);
-                        if (m || t || c) {
-                            taskRows.push({ m, t, c });
-                        }
-                        idx++;
-                    }
+    // ==========================================
+    // HANDLERS
+    // ==========================================
 
-                    const payload = {
-                        reportId: activeReport.reportId,
-                        userId: user.uid,
-                        date: fd.get('date'),
-                        day: fd.get('day'),
-                        location: fd.get('location'),
-                        attendance: fd.get('attendance'),
-                        startTime: formatTime12Hour(fd.get('startTime')),
-                        endTime: formatTime12Hour(fd.get('endTime')),
-                        tasks: taskRows
-                    };
+    const handleCreateFolder = async (e) => {
+        e.preventDefault();
+        const d = Object.fromEntries(new FormData(e.target));
+        const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
+        if (res.success) {
+            notify("Folder mingguan berjaya dicipta!");
+            fetchReports(user);
+            setView('list');
+        } else {
+            notify(res.message, "error");
+        }
+    };
 
-                    const res = await callAPI('saveDailyLog', payload);
-                    if (res.success) {
-                        notify("Log harian ditambah!");
-                        fetchReports(user);
-                        setShowLogForm(false);
-                    } else {
-                        notify(res.message || "Gagal menyimpan log", "error");
-                    }
-                };
+    const handleAddLog = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        const taskRows = [];
+        let idx = 0;
+        while (fd.has(`m${idx}`)) {
+            const m = fd.get(`m${idx}`);
+            const t = fd.get(`t${idx}`);
+            const c = fd.get(`c${idx}`);
+            if (m || t || c) {
+                taskRows.push({ m, t, c });
+            }
+            idx++;
+        }
 
-                const handleDeleteLog = async (logId) => {
-                    if (window.confirm("Hapus log ini? Tindakan tidak boleh dibatalkan.")) {
-                        const res = await callAPI('deleteDailyLog', { logId });
-                        if (res.success) {
-                            notify("Log berjaya dihapus!");
-                            fetchReports(user);
-                        } else {
-                            notify(res.message || "Gagal hapus log", "error");
-                        }
-                    }
-                };
+        const payload = {
+            reportId: activeReport.reportId,
+            userId: user.uid,
+            date: fd.get('date'),
+            day: fd.get('day'),
+            location: fd.get('location'),
+            attendance: fd.get('attendance'),
+            startTime: formatTime12Hour(fd.get('startTime')),
+            endTime: formatTime12Hour(fd.get('endTime')),
+            tasks: taskRows
+        };
 
-                const handleEditLog = (log) => {
-                    setEditingLog(log);
-                    setShowLogForm(true);
-                };
+        const res = await callAPI('saveDailyLog', payload);
+        if (res.success) {
+            notify("Log harian ditambah!");
+            fetchReports(user);
+            setShowLogForm(false);
+        } else {
+            notify(res.message || "Gagal menyimpan log", "error");
+        }
+    };
 
-                const handleUpdateLog = async (e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.target);
-                    
-                    const taskRows = [];
-                    let idx = 0;
-                    while (fd.has(`m${idx}`)) {
-                        const m = fd.get(`m${idx}`);
-                        const t = fd.get(`t${idx}`);
-                        const c = fd.get(`c${idx}`);
-                        if (m || t || c) {
-                            taskRows.push({ m, t, c });
-                        }
-                        idx++;
-                    }
+    const handleDeleteLog = async (logId) => {
+        if (window.confirm("Hapus log ini? Tindakan tidak boleh dibatalkan.")) {
+            const res = await callAPI('deleteDailyLog', { logId });
+            if (res.success) {
+                notify("Log berjaya dihapus!");
+                fetchReports(user);
+            } else {
+                notify(res.message || "Gagal hapus log", "error");
+            }
+        }
+    };
 
-                    const payload = {
-                        logId: editingLog.logId,
-                        date: fd.get('date'),
-                        day: fd.get('day'),
-                        location: fd.get('location'),
-                        attendance: fd.get('attendance'),
-                        startTime: formatTime12Hour(fd.get('startTime')),
-                        endTime: formatTime12Hour(fd.get('endTime')),
-                        tasks: taskRows
-                    };
+    const handleEditLog = (log) => {
+        setEditingLog(log);
+        setShowLogForm(true);
+    };
 
-                    const res = await callAPI('updateDailyLog', payload);
-                    if (res.success) {
-                        notify("Log berjaya dikemaskini!");
-                        fetchReports(user);
-                        setShowLogForm(false);
-                        setEditingLog(null);
-                    } else {
-                        notify(res.message || "Gagal update log", "error");
-                    }
-                };
+    const handleUpdateLog = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        const taskRows = [];
+        let idx = 0;
+        while (fd.has(`m${idx}`)) {
+            const m = fd.get(`m${idx}`);
+            const t = fd.get(`t${idx}`);
+            const c = fd.get(`c${idx}`);
+            if (m || t || c) {
+                taskRows.push({ m, t, c });
+            }
+            idx++;
+        }
 
-                const handleUnreport = async (id) => {
-                    if (window.confirm("Tarik semula laporan ini ke status Draft? Anda boleh edit semula selepas itu.")) {
-                        const res = await callAPI('unreportReport', { reportId: id });
-                        if (res.success) {
-                            notify("Laporan berjaya ditarik semula! Status: Draft");
-                            fetchReports(user);
-                            if (activeReport && activeReport.reportId === id) {
-                                setActiveReport({...activeReport, status: 'Draft'});
-                            }
-                        } else {
-                            notify(res.message || "Gagal tarik semula laporan", "error");
-                        }
-                    }
-                };
+        const payload = {
+            logId: editingLog.logId,
+            date: fd.get('date'),
+            day: fd.get('day'),
+            location: fd.get('location'),
+            attendance: fd.get('attendance'),
+            startTime: formatTime12Hour(fd.get('startTime')),
+            endTime: formatTime12Hour(fd.get('endTime')),
+            tasks: taskRows
+        };
 
-                const confirmSubmit = async (id) => {
-                    if (window.confirm("Adakah anda pasti? Laporan akan dihantar untuk semakan GPK.")) {
-                        const res = await callAPI('submitReport', { reportId: id });
-                        if (res.success) {
-                            notify("Laporan berjaya dihantar!");
-                            fetchReports(user);
-                        }
-                    }
-                };
+        const res = await callAPI('updateDailyLog', payload);
+        if (res.success) {
+            notify("Log berjaya dikemaskini!");
+            fetchReports(user);
+            setShowLogForm(false);
+            setEditingLog(null);
+        } else {
+            notify(res.message || "Gagal update log", "error");
+        }
+    };
 
-                // Create Folder View
-                if (view === 'createFolder') {
-                    return (
-                        <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100 mt-10">
-                            <h3 className="text-xl font-black mb-6 flex items-center">
-                                <Icon name="Plus" className="mr-2 text-indigo-600"/> 
-                                Cipta Tapak Minggu
-                            </h3>
-                            <form onSubmit={handleCreateFolder} className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
-                                        Tahun
-                                    </label>
-                                    <input 
-                                        name="year" 
-                                        type="number" 
-                                        defaultValue={new Date().getFullYear()} 
-                                        min="2020" 
-                                        max="2050" 
-                                        className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" 
-                                        required 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
-                                        Minggu Ke
-                                    </label>
-                                    <input 
-                                        name="weekNum" 
-                                        type="number" 
-                                        min="1" 
-                                        max="56" 
-                                        className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" 
-                                        required 
-                                    />
-                                </div>
-                                <div className="flex gap-3 pt-4">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setView('list')} 
-                                        className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
-                                    >
-                                        Batal
-                                    </button>
-                                    <button 
-                                        type="submit" 
-                                        className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-                                    >
-                                        Cipta Folder
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    );
+    const handleUnreport = async (id) => {
+        if (window.confirm("Tarik semula laporan ini ke status Draft? Anda boleh edit semula selepas itu.")) {
+            const res = await callAPI('unreportReport', { reportId: id });
+            if (res.success) {
+                notify("Laporan berjaya ditarik semula! Status: Draft");
+                fetchReports(user);
+                if (activeReport && activeReport.reportId === id) {
+                    setActiveReport({...activeReport, status: 'Draft'});
                 }
+            } else {
+                notify(res.message || "Gagal tarik semula laporan", "error");
+            }
+        }
+    };
 
-                // View Logs View
-                if (view === 'view' && activeReport) {
-                    return (
-                        <div className="space-y-6">
-                            {showLogForm && (
-                                <DailyLogForm 
-                                    onSubmit={editingLog ? handleUpdateLog : handleAddLog}
-                                    onClose={() => {
-                                        setShowLogForm(false);
-                                        setEditingLog(null);
-                                    }}
-                                    settings={settings}
-                                    editingLog={editingLog}
-                                />
-                            )}
+    const confirmSubmit = async (id) => {
+        if (window.confirm("Adakah anda pasti? Laporan akan dihantar untuk semakan GPK.")) {
+            const res = await callAPI('submitReport', { reportId: id });
+            if (res.success) {
+                notify("Laporan berjaya dihantar!");
+                fetchReports(user);
+            }
+        }
+    };
 
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    // ==========================================
+    // VIEW: CREATE FOLDER
+    // ==========================================
+    if (view === 'createFolder') {
+        return (
+            <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100 mt-10">
+                <h3 className="text-xl font-black mb-6 flex items-center">
+                    <Icon name="Plus" className="mr-2 text-indigo-600"/> 
+                    Cipta Tapak Minggu
+                </h3>
+                <form onSubmit={handleCreateFolder} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                            Tahun
+                        </label>
+                        <input 
+                            name="year" 
+                            type="number" 
+                            defaultValue={new Date().getFullYear()} 
+                            min="2020" 
+                            max="2050" 
+                            className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            required 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                            Minggu Ke
+                        </label>
+                        <input 
+                            name="weekNum" 
+                            type="number" 
+                            min="1" 
+                            max="56" 
+                            className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            required 
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button 
+                            type="button" 
+                            onClick={() => setView('list')} 
+                            className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <button 
+                            type="submit" 
+                            className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                        >
+                            Cipta Folder
+                        </button>
+                    </div>
+                </form>
+            </div>
+        );
+    }
+
+    // ==========================================
+// DAILY LOG FORM COMPONENT
+// ==========================================
+// This is a modal form for creating/editing daily logs
+// Used inside JanaLaporan component
+
+const DailyLogForm = ({ onSubmit, onClose, settings, editingLog }) => {
+    const [tasks, setTasks] = useState(
+        editingLog?.tasks || [{ m: "", t: "", c: "" }]
+    );
+    const [selectedTemplate, setSelectedTemplate] = useState("");
+
+    const handleTemplateSelect = (templateKey) => {
+        if (templateKey && TEMPLATE_OPTIONS[templateKey]) {
+            setTasks([...TEMPLATE_OPTIONS[templateKey].tasks]);
+            setSelectedTemplate(templateKey);
+        }
+    };
+
+    const addTask = () => {
+        setTasks([...tasks, { m: "", t: "", c: "" }]);
+    };
+
+    const removeTask = (index) => {
+        if (tasks.length > 1) {
+            setTasks(tasks.filter((_, i) => i !== index));
+        }
+    };
+
+    const updateTask = (index, field, value) => {
+        const updated = [...tasks];
+        updated[index][field] = value;
+        setTasks(updated);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto p-4">
+            <div className="min-h-screen flex items-start justify-center py-8">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl animate-in slide-in-from-bottom duration-300">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-t-3xl">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                                    <Icon name="Calendar" size={24} />
+                                </div>
                                 <div>
-                                    <button 
-                                        onClick={() => {setView('list'); setActiveReport(null);}} 
-                                        className="flex items-center text-indigo-600 hover:text-indigo-700 font-bold mb-2"
-                                    >
-                                        <Icon name="ArrowLeft" size={18} className="mr-1"/> 
-                                        Kembali
-                                    </button>
-                                    <h3 className="text-2xl font-black text-slate-800">
-                                        Minggu {activeReport.weekNum} ({activeReport.year})
+                                    <h3 className="text-2xl font-black">
+                                        {editingLog ? 'Edit' : 'Tambah'} Log Harian
                                     </h3>
-                                    <p className="text-sm text-slate-500 mt-1">
-                                        Status: <span className="font-bold">{activeReport.status}</span>
+                                    <p className="text-indigo-100 text-sm font-medium">
+                                        Isi maklumat tugasan harian anda
                                     </p>
                                 </div>
-                                {activeReport.status === 'Draft' && user.role === 'User' && (
-                                    <button 
-                                        onClick={() => {
-                                            setEditingLog(null);
-                                            setShowLogForm(true);
-                                        }}
-                                        disabled={user.status !== 'Active'}
-                                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg ${
-                                            user.status === 'Active'
-                                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                        }`}
-                                    >
-                                        <Icon name="Plus" size={18}/> 
-                                        Tambah Log Harian
-                                    </button>
-                                )}
                             </div>
-
-                            <div className="space-y-4">
-                                {activeReport.logs?.sort((a, b) => getDayNumber(a.day) - getDayNumber(b.day)).map((log, idx) => (
-                                    <div key={idx} className="bg-white border-2 border-slate-300 rounded-2xl overflow-hidden shadow-sm">
-                                        <div className="bg-slate-100 px-6 py-4 border-b-2 border-slate-300 flex justify-between items-center">
-                                            <h5 className="font-black text-slate-800 text-lg">
-                                                Laporan Harian #{idx + 1} - {log.day}
-                                                <span className="ml-3 text-sm text-slate-500 font-medium">
-                                                    ({new Date(log.date).toLocaleDateString('ms-MY', { 
-                                                        day: 'numeric', 
-                                                        month: 'short', 
-                                                        year: 'numeric' 
-                                                    })})
-                                                </span>
-                                            </h5>
-                                            {activeReport.status === 'Draft' && user.role === 'User' && (
-                                                <div className="flex gap-2">
-                                                    <button 
-                                                        onClick={() => handleEditLog(log)}
-                                                        disabled={user.status !== 'Active'}
-                                                        className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 ${
-                                                            user.status === 'Active'
-                                                                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                                                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                                        }`}
-                                                    >
-                                                        <Icon name="Edit" size={14}/> 
-                                                        Edit
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleDeleteLog(log.logId)}
-                                                        disabled={user.status !== 'Active'}
-                                                        className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 ${
-                                                            user.status === 'Active'
-                                                                ? 'bg-red-600 text-white hover:bg-red-700'
-                                                                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                                        }`}
-                                                    >
-                                                        <Icon name="Trash2" size={14}/> 
-                                                        Hapus
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="p-6">
-                                            <div className="bg-slate-800 px-4 py-2 rounded-t-lg -mx-6 -mt-6 mb-4">
-                                                <h6 className="font-bold text-white uppercase text-xs tracking-wider flex items-center">
-                                                    <Icon name="Calendar" size={14} className="mr-2"/> 
-                                                    Maklumat Asas
-                                                </h6>
-                                            </div>
-
-                                            <table className="w-full text-sm mb-6">
-                                                <tbody>
-                                                    <tr className="border-b border-slate-300">
-                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">
-                                                            Nama Penuh
-                                                        </td>
-                                                        <td className="p-3 font-semibold">
-                                                            {user.fullName}
-                                                        </td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-300">
-                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
-                                                            Tarikh
-                                                        </td>
-                                                        <td className="p-3 font-semibold">
-                                                            {new Date(log.date).toLocaleDateString('ms-MY', { 
-                                                                day: '2-digit', 
-                                                                month: '2-digit', 
-                                                                year: 'numeric' 
-                                                            })}
-                                                            <span className="ml-2 text-slate-500">({log.day})</span>
-                                                        </td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-300">
-                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
-                                                            Hari
-                                                        </td>
-                                                        <td className="p-3 font-semibold">{log.day}</td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-300">
-                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
-                                                            Lokasi
-                                                        </td>
-                                                        <td className="p-3 font-semibold">{log.location}</td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-300">
-                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
-                                                            Kehadiran
-                                                        </td>
-                                                        <td className="p-3 font-semibold">{log.attendance}</td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-300">
-                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
-                                                            Masa Masuk
-                                                        </td>
-                                                        <td className="p-3 font-semibold">
-                                                            {formatTime12Hour(log.startTime)}
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
-                                                            Masa Keluar
-                                                        </td>
-                                                        <td className="p-3 font-semibold">
-                                                            {formatTime12Hour(log.endTime)}
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm text-left border-t-2 border-slate-300 min-w-[600px]">
-                                                    <thead>
-                                                        <tr className="bg-slate-700 text-white">
-                                                            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>
-                                                                Masa
-                                                            </th>
-                                                            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>
-                                                                Tugasan
-                                                            </th>
-                                                            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>
-                                                                Catatan
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {log.tasks?.map((t, ti) => (
-                                                            <tr key={ti} className="bg-white hover:bg-slate-50">
-                                                                <td className="p-3 border border-slate-300 font-bold text-indigo-700">
-                                                                    {t.m || '-'}
-                                                                </td>
-                                                                <td className="p-3 border border-slate-300 font-medium text-slate-800">
-                                                                    {t.t || '-'}
-                                                                </td>
-                                                                <td className="p-3 border border-slate-300 text-slate-600 italic">
-                                                                    {t.c || '-'}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                                {activeReport.logs?.length === 0 && (
-                                    <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium bg-white">
-                                        Tiada log harian ditemui. Klik butang tambah di atas.
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    );
-                }
-
-                // List View (Default)
-                return (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
-                            {user.role === 'User' && (
-                                <button 
-                                    onClick={() => setView('createFolder')} 
-                                    disabled={user.status !== 'Active'}
-                                    className={`px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform ${
-                                        user.status === 'Active' 
-                                            ? 'bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1' 
-                                            : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                    }`}
-                                >
-                                    <Icon name="Plus" size={18} className="mr-2"/> 
-                                    Cipta Folder
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {reports
-                                .sort((a, b) => {
-                                    if (b.year !== a.year) return b.year - a.year;
-                                    return b.weekNum - a.weekNum;
-                                })
-                                .map((r) => (
-                                    <div 
-                                        key={r.reportId} 
-                                        className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500"
-                                    >
-                                        <div className="p-6">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div>
-                                                    <h4 className="text-2xl font-black text-slate-800">
-                                                        Minggu {r.weekNum}
-                                                    </h4>
-                                                    <p className="text-sm font-medium text-slate-400 italic">
-                                                        Sesi {r.year}
-                                                    </p>
-                                                </div>
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                                    r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
-                                                    r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 
-                                                    'bg-emerald-100 text-emerald-700'
-                                                }`}>
-                                                    {r.status}
-                                                </span>
-                                            </div>
-                                            <div className="space-y-3 pt-4 border-t border-slate-50">
-                                                <div className="flex items-center text-slate-500 text-xs font-medium">
-                                                    <Icon name="Calendar" size={14} className="mr-2 text-indigo-400" /> 
-                                                    ID: {r.reportId}
-                                                </div>
-                                                {r.submittedAt && (
-                                                    <div className="flex items-center text-slate-500 text-xs font-medium">
-                                                        <Icon name="Clock" size={14} className="mr-2 text-indigo-400" /> 
-                                                        Hantar: {new Date(r.submittedAt).toLocaleString()}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            
-                                            <div className={`grid ${
-                                                r.status === 'Draft' ? 'grid-cols-2' : 
-                                                r.status === 'Submitted' ? 'grid-cols-2' : 
-                                                'grid-cols-1'
-                                            } gap-3 mt-6`}>
-                                                <button 
-                                                    onClick={() => {
-                                                        setActiveReport(r); 
-                                                        setView('view');
-                                                    }} 
-                                                    className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
-                                                >
-                                                    Lihat Log
-                                                </button>
-                                                
-                                                {r.status === 'Draft' && user.role === 'User' && (
-                                                    <button 
-                                                        onClick={() => confirmSubmit(r.reportId)} 
-                                                        disabled={user.status !== 'Active'}
-                                                        className={`py-2.5 rounded-xl font-bold text-xs transition-colors ${
-                                                            user.status === 'Active'
-                                                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                                                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                                        }`}
-                                                    >
-                                                        Hantar
-                                                    </button>
-                                                )}
-                                                
-                                                {r.status === 'Submitted' && user.role === 'User' && (
-                                                    <button 
-                                                        onClick={() => handleUnreport(r.reportId)}
-                                                        className="py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
-                                                    >
-                                                        <Icon name="RotateCcw" size={14}/>
-                                                        Tarik Semula
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            }
+                            <button 
+                                onClick={onClose}
+                                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-colors backdrop-blur-sm"
+                            >
+                                <Icon name="X" size={20} />
+                            </button>
                         </div>
                     </div>
-                );
-            };
 
-            // ==========================================
-            // TASK CARD COMPONENT (Mobile-Friendly)
-            // ==========================================
-            const TaskCard = ({ index, task, onUpdate, onRemove, showRemove }) => {
-                const handleTextareaChange = (e, field) => {
-                    onUpdate(index, field, e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = e.target.scrollHeight + 'px';
-                };
-
-                return (
-                    <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 hover:border-indigo-300 transition-all shadow-sm hover:shadow-md">
-                        <div className="flex items-start justify-between mb-3">
-                            <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-black">
-                                #{index + 1}
-                            </span>
-                            {showRemove && (
-                                <button 
-                                    type="button"
-                                    onClick={() => onRemove(index)}
-                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                    <form onSubmit={onSubmit} className="p-6 space-y-6">
+                        {/* Template Selector */}
+                        {!editingLog && (
+                            <div className="bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-5">
+                                <label className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-3 block flex items-center gap-2">
+                                    <Icon name="FileText" size={16} />
+                                    Pilih Template (Pilihan)
+                                </label>
+                                <select 
+                                    value={selectedTemplate}
+                                    onChange={(e) => handleTemplateSelect(e.target.value)}
+                                    className="w-full p-4 border-2 border-indigo-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                                 >
-                                    <Icon name="Trash2" size={16}/>
-                                </button>
-                            )}
-                        </div>
+                                    <option value="">-- Kosong (Manual Entry) --</option>
+                                    {Object.entries(TEMPLATE_OPTIONS).map(([key, template]) => (
+                                        <option key={key} value={key}>
+                                            {template.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                    Waktu
+                        {/* Basic Info Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                    Tarikh
                                 </label>
                                 <input 
-                                    name={`m${index}`}
-                                    type="text"
-                                    value={task.m}
-                                    onChange={(e) => onUpdate(index, 'm', e.target.value)}
-                                    placeholder="Contoh: 07:00 - 09:00"
-                                    className="w-full p-3 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-bold"
+                                    name="date" 
+                                    type="date" 
+                                    defaultValue={editingLog?.date || new Date().toISOString().split('T')[0]}
+                                    className="w-full p-3.5 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    required 
                                 />
                             </div>
 
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                    Tugasan
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                    Hari
                                 </label>
-                                <textarea 
-                                    name={`t${index}`}
-                                    value={task.t}
-                                    onChange={(e) => handleTextareaChange(e, 't')}
-                                    placeholder="Perihal tugasan utama..."
-                                    rows="2"
-                                    className="w-full p-3 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-medium resize-none overflow-hidden"
+                                <select 
+                                    name="day" 
+                                    defaultValue={editingLog?.day || "Isnin"}
+                                    className="w-full p-4 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    required
+                                >
+                                    <option value="Isnin">Isnin</option>
+                                    <option value="Selasa">Selasa</option>
+                                    <option value="Rabu">Rabu</option>
+                                    <option value="Khamis">Khamis</option>
+                                    <option value="Jumaat">Jumaat</option>
+                                    <option value="Sabtu">Sabtu</option>
+                                    <option value="Ahad">Ahad</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                    Lokasi
+                                </label>
+                                <select 
+                                    name="location" 
+                                    defaultValue={editingLog?.location || ""}
+                                    className="w-full p-4 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    required
+                                >
+                                    <option value="">Pilih Lokasi</option>
+                                    {settings.locations.map((loc, i) => (
+                                        <option key={i} value={loc}>{loc}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                    Kehadiran
+                                </label>
+                                <select 
+                                    name="attendance" 
+                                    defaultValue={editingLog?.attendance || "Hadir"}
+                                    className="w-full p-4 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    required
+                                >
+                                    <option value="Hadir">✓ Hadir</option>
+                                    <option value="Cuti">Cuti</option>
+                                    <option value="Sakit">Sakit</option>
+                                    <option value="Tanpa Kebenaran">Tanpa Kebenaran</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                    Masa Masuk (24-jam)
+                                </label>
+                                <input 
+                                    name="startTime" 
+                                    type="time" 
+                                    defaultValue={editingLog?.startTime || "07:00"}
+                                    className="w-full p-3.5 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    required 
                                 />
                             </div>
 
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                    Catatan
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                    Masa Keluar (24-jam)
                                 </label>
-                                <textarea 
-                                    name={`c${index}`}
-                                    value={task.c}
-                                    onChange={(e) => handleTextareaChange(e, 'c')}
-                                    placeholder="Tambahan catatan (pilihan)"
-                                    rows="1"
-                                    className="w-full p-3 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm italic text-slate-600 resize-none overflow-hidden"
+                                <input 
+                                    name="endTime" 
+                                    type="time" 
+                                    defaultValue={editingLog?.endTime || "17:00"}
+                                    className="w-full p-3.5 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    required 
                                 />
                             </div>
                         </div>
+
+                        {/* Tasks Section */}
+                        <div className="space-y-4 pt-6 border-t-2 border-slate-100">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Icon name="CheckSquare" size={20} className="text-indigo-600" />
+                                    <h4 className="text-lg font-black text-slate-800">
+                                        Senarai Tugasan ({tasks.length})
+                                    </h4>
+                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={addTask}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-lg shadow-indigo-100"
+                                >
+                                    <Icon name="Plus" size={16} />
+                                    Tambah Baris
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto no-scrollbar pr-2">
+                                {tasks.map((task, idx) => (
+                                    <TaskCard 
+                                        key={idx}
+                                        index={idx}
+                                        task={task}
+                                        onUpdate={updateTask}
+                                        onRemove={removeTask}
+                                        showRemove={tasks.length > 1}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-6 border-t-2 border-slate-100">
+                            <button 
+                                type="button"
+                                onClick={onClose}
+                                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-colors"
+                            >
+                                BATAL
+                            </button>
+                            <button 
+                                type="submit"
+                                className="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:shadow-2xl transition-all"
+                            >
+                                {editingLog ? 'KEMASKINI LOG' : 'SIMPAN LOG'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+    // ==========================================
+    // VIEW: VIEW LOGS (Inside a specific report)
+    // ==========================================
+    if (view === 'view' && activeReport) {
+        return (
+            <div className="space-y-6">
+                {showLogForm && (
+                    <DailyLogForm 
+                        onSubmit={editingLog ? handleUpdateLog : handleAddLog}
+                        onClose={() => {
+                            setShowLogForm(false);
+                            setEditingLog(null);
+                        }}
+                        settings={settings}
+                        editingLog={editingLog}
+                    />
+                )}
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <button 
+                            onClick={() => {setView('list'); setActiveReport(null);}} 
+                            className="flex items-center text-indigo-600 hover:text-indigo-700 font-bold mb-2"
+                        >
+                            <Icon name="ArrowLeft" size={18} className="mr-1"/> 
+                            Kembali
+                        </button>
+                        <h3 className="text-2xl font-black text-slate-800">
+                            Minggu {activeReport.weekNum} ({activeReport.year})
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Status: <span className="font-bold">{activeReport.status}</span>
+                        </p>
                     </div>
-                );
-            };
+                    {activeReport.status === 'Draft' && user.role === 'User' && (
+                        <button 
+                            onClick={() => {
+                                setEditingLog(null);
+                                setShowLogForm(true);
+                            }}
+                            disabled={user.status !== 'Active'}
+                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg ${
+                                user.status === 'Active'
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                            }`}
+                        >
+                            <Icon name="Plus" size={18}/> 
+                            Tambah Log Harian
+                        </button>
+                    )}
+                </div>
+
+                <div className="space-y-4">
+                    {activeReport.logs?.sort((a, b) => getDayNumber(a.day) - getDayNumber(b.day)).map((log, idx) => (
+                        <div key={idx} className="bg-white border-2 border-slate-300 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="bg-slate-100 px-6 py-4 border-b-2 border-slate-300 flex justify-between items-center">
+                                <h5 className="font-black text-slate-800 text-lg">
+                                    Laporan Harian #{idx + 1} - {log.day}
+                                    <span className="ml-3 text-sm text-slate-500 font-medium">
+                                        ({new Date(log.date).toLocaleDateString('ms-MY', { 
+                                            day: 'numeric', 
+                                            month: 'short', 
+                                            year: 'numeric' 
+                                        })})
+                                    </span>
+                                </h5>
+                                {activeReport.status === 'Draft' && user.role === 'User' && (
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => handleEditLog(log)}
+                                            disabled={user.status !== 'Active'}
+                                            className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 ${
+                                                user.status === 'Active'
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <Icon name="Edit" size={14}/> 
+                                            Edit
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteLog(log.logId)}
+                                            disabled={user.status !== 'Active'}
+                                            className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 ${
+                                                user.status === 'Active'
+                                                    ? 'bg-red-600 text-white hover:bg-red-700'
+                                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <Icon name="Trash2" size={14}/> 
+                                            Hapus
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-6">
+                                <div className="bg-slate-800 px-4 py-2 rounded-t-lg -mx-6 -mt-6 mb-4">
+                                    <h6 className="font-bold text-white uppercase text-xs tracking-wider flex items-center">
+                                        <Icon name="Calendar" size={14} className="mr-2"/> 
+                                        Maklumat Asas
+                                    </h6>
+                                </div>
+
+                                <table className="w-full text-sm mb-6">
+                                    <tbody>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">
+                                                Nama Penuh
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {user.fullName}
+                                            </td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Tarikh
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {new Date(log.date).toLocaleDateString('ms-MY', { 
+                                                    day: '2-digit', 
+                                                    month: '2-digit', 
+                                                    year: 'numeric' 
+                                                })}
+                                                <span className="ml-2 text-slate-500">({log.day})</span>
+                                            </td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Hari
+                                            </td>
+                                            <td className="p-3 font-semibold">{log.day}</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Lokasi
+                                            </td>
+                                            <td className="p-3 font-semibold">{log.location}</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Kehadiran
+                                            </td>
+                                            <td className="p-3 font-semibold">{log.attendance}</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Masa Masuk
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {formatTime12Hour(log.startTime)}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Masa Keluar
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {formatTime12Hour(log.endTime)}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left border-t-2 border-slate-300 min-w-[600px]">
+                                        <thead>
+                                            <tr className="bg-slate-700 text-white">
+                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>
+                                                    Masa
+                                                </th>
+                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>
+                                                    Tugasan
+                                                </th>
+                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>
+                                                    Catatan
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {log.tasks?.map((t, ti) => (
+                                                <tr key={ti} className="bg-white hover:bg-slate-50">
+                                                    <td className="p-3 border border-slate-300 font-bold text-indigo-700">
+                                                        {t.m || '-'}
+                                                    </td>
+                                                    <td className="p-3 border border-slate-300 font-medium text-slate-800">
+                                                        {t.t || '-'}
+                                                    </td>
+                                                    <td className="p-3 border border-slate-300 text-slate-600 italic">
+                                                        {t.c || '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {activeReport.logs?.length === 0 && (
+                        <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium bg-white">
+                            Tiada log harian ditemui. Klik butang tambah di atas.
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // ==========================================
+    // VIEW: LIST (Default - Show all reports)
+    // ==========================================
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
+                {user.role === 'User' && (
+                    <button 
+                        onClick={() => setView('createFolder')} 
+                        disabled={user.status !== 'Active'}
+                        className={`px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform ${
+                            user.status === 'Active' 
+                                ? 'bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1' 
+                                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                        }`}
+                    >
+                        <Icon name="Plus" size={18} className="mr-2"/> 
+                        Cipta Folder
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reports
+                    .sort((a, b) => {
+                        if (b.year !== a.year) return b.year - a.year;
+                        return b.weekNum - a.weekNum;
+                    })
+                    .map((r) => (
+                        <div 
+                            key={r.reportId} 
+                            className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500"
+                        >
+                            <div className="p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h4 className="text-2xl font-black text-slate-800">
+                                            Minggu {r.weekNum}
+                                        </h4>
+                                        <p className="text-sm font-medium text-slate-400 italic">
+                                            Sesi {r.year}
+                                        </p>
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                        r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
+                                        r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 
+                                        'bg-emerald-100 text-emerald-700'
+                                    }`}>
+                                        {r.status}
+                                    </span>
+                                </div>
+                                <div className="space-y-3 pt-4 border-t border-slate-50">
+                                    <div className="flex items-center text-slate-500 text-xs font-medium">
+                                        <Icon name="Calendar" size={14} className="mr-2 text-indigo-400" /> 
+                                        ID: {r.reportId}
+                                    </div>
+                                    {r.submittedAt && (
+                                        <div className="flex items-center text-slate-500 text-xs font-medium">
+                                            <Icon name="Clock" size={14} className="mr-2 text-indigo-400" /> 
+                                            Hantar: {new Date(r.submittedAt).toLocaleString()}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className={`grid ${
+                                    r.status === 'Draft' ? 'grid-cols-2' : 
+                                    r.status === 'Submitted' ? 'grid-cols-2' : 
+                                    'grid-cols-1'
+                                } gap-3 mt-6`}>
+                                    <button 
+                                        onClick={() => {
+                                            setActiveReport(r); 
+                                            setView('view');
+                                        }} 
+                                        className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
+                                    >
+                                        Lihat Log
+                                    </button>
+                                    
+                                    {r.status === 'Draft' && user.role === 'User' && (
+                                        <button 
+                                            onClick={() => confirmSubmit(r.reportId)} 
+                                            disabled={user.status !== 'Active'}
+                                            className={`py-2.5 rounded-xl font-bold text-xs transition-colors ${
+                                                user.status === 'Active'
+                                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            Hantar
+                                        </button>
+                                    )}
+                                    
+                                    {r.status === 'Submitted' && user.role === 'User' && (
+                                        <button 
+                                            onClick={() => handleUnreport(r.reportId)}
+                                            className="py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            <Icon name="RotateCcw" size={14}/>
+                                            Tarik Semula
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                }
+            </div>
+        </div>
+    );
+};
+
+
+            // ==========================================
+// TASK CARD COMPONENT (Mobile-Friendly)
+// ==========================================
+// Individual task row with auto-expanding textareas
+// Used in DailyLogForm to manage task entries
+
+const TaskCard = ({ index, task, onUpdate, onRemove, showRemove }) => {
+    const handleTextareaChange = (e, field) => {
+        onUpdate(index, field, e.target.value);
+        // Auto-expand textarea height
+        e.target.style.height = 'auto';
+        e.target.style.height = e.target.scrollHeight + 'px';
+    };
+
+    return (
+        <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 hover:border-indigo-300 transition-all shadow-sm hover:shadow-md">
+            <div className="flex items-start justify-between mb-3">
+                <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-black">
+                    #{index + 1}
+                </span>
+                {showRemove && (
+                    <button 
+                        type="button"
+                        onClick={() => onRemove(index)}
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                        title="Buang tugasan ini"
+                    >
+                        <Icon name="Trash2" size={16}/>
+                    </button>
+                )}
+            </div>
+
+            <div className="space-y-3">
+                {/* Time Field */}
+                <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Waktu
+                    </label>
+                    <input 
+                        name={`m${index}`}
+                        type="text"
+                        value={task.m}
+                        onChange={(e) => onUpdate(index, 'm', e.target.value)}
+                        placeholder="Contoh: 07:00 - 09:00"
+                        className="w-full p-3 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-bold"
+                    />
+                </div>
+
+                {/* Task Description Field */}
+                <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Tugasan
+                    </label>
+                    <textarea 
+                        name={`t${index}`}
+                        value={task.t}
+                        onChange={(e) => handleTextareaChange(e, 't')}
+                        placeholder="Perihal tugasan utama..."
+                        rows="2"
+                        className="w-full p-3 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-medium resize-none overflow-hidden"
+                    />
+                </div>
+
+                {/* Notes/Comments Field */}
+                <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Catatan
+                    </label>
+                    <textarea 
+                        name={`c${index}`}
+                        value={task.c}
+                        onChange={(e) => handleTextareaChange(e, 'c')}
+                        placeholder="Tambahan catatan (pilihan)"
+                        rows="1"
+                        className="w-full p-3 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm italic text-slate-600 resize-none overflow-hidden"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 /* PART 2D */
+
+        // ==========================================
+// JANA LAPORAN COMPONENT
+// ==========================================
+// Main component for creating and managing weekly reports
+// Handles: folder creation, daily log viewing/editing, report submission
+
+const JanaLaporan = () => {
+    const [view, setView] = useState('list'); // 'list' | 'createFolder' | 'view'
+    const [activeReport, setActiveReport] = useState(null);
+    const [showLogForm, setShowLogForm] = useState(false);
+    const [editingLog, setEditingLog] = useState(null);
+
+    // ==========================================
+    // HANDLERS
+    // ==========================================
+
+    const handleCreateFolder = async (e) => {
+        e.preventDefault();
+        const d = Object.fromEntries(new FormData(e.target));
+        const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
+        if (res.success) {
+            notify("Folder mingguan berjaya dicipta!");
+            fetchReports(user);
+            setView('list');
+        } else {
+            notify(res.message, "error");
+        }
+    };
+
+    const handleAddLog = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        const taskRows = [];
+        let idx = 0;
+        while (fd.has(`m${idx}`)) {
+            const m = fd.get(`m${idx}`);
+            const t = fd.get(`t${idx}`);
+            const c = fd.get(`c${idx}`);
+            if (m || t || c) {
+                taskRows.push({ m, t, c });
+            }
+            idx++;
+        }
+
+        const payload = {
+            reportId: activeReport.reportId,
+            userId: user.uid,
+            date: fd.get('date'),
+            day: fd.get('day'),
+            location: fd.get('location'),
+            attendance: fd.get('attendance'),
+            startTime: formatTime12Hour(fd.get('startTime')),
+            endTime: formatTime12Hour(fd.get('endTime')),
+            tasks: taskRows
+        };
+
+        const res = await callAPI('saveDailyLog', payload);
+        if (res.success) {
+            notify("Log harian ditambah!");
+            fetchReports(user);
+            setShowLogForm(false);
+        } else {
+            notify(res.message || "Gagal menyimpan log", "error");
+        }
+    };
+
+    const handleDeleteLog = async (logId) => {
+        if (window.confirm("Hapus log ini? Tindakan tidak boleh dibatalkan.")) {
+            const res = await callAPI('deleteDailyLog', { logId });
+            if (res.success) {
+                notify("Log berjaya dihapus!");
+                fetchReports(user);
+            } else {
+                notify(res.message || "Gagal hapus log", "error");
+            }
+        }
+    };
+
+    const handleEditLog = (log) => {
+        setEditingLog(log);
+        setShowLogForm(true);
+    };
+
+    const handleUpdateLog = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        const taskRows = [];
+        let idx = 0;
+        while (fd.has(`m${idx}`)) {
+            const m = fd.get(`m${idx}`);
+            const t = fd.get(`t${idx}`);
+            const c = fd.get(`c${idx}`);
+            if (m || t || c) {
+                taskRows.push({ m, t, c });
+            }
+            idx++;
+        }
+
+        const payload = {
+            logId: editingLog.logId,
+            date: fd.get('date'),
+            day: fd.get('day'),
+            location: fd.get('location'),
+            attendance: fd.get('attendance'),
+            startTime: formatTime12Hour(fd.get('startTime')),
+            endTime: formatTime12Hour(fd.get('endTime')),
+            tasks: taskRows
+        };
+
+        const res = await callAPI('updateDailyLog', payload);
+        if (res.success) {
+            notify("Log berjaya dikemaskini!");
+            fetchReports(user);
+            setShowLogForm(false);
+            setEditingLog(null);
+        } else {
+            notify(res.message || "Gagal update log", "error");
+        }
+    };
+
+    const handleUnreport = async (id) => {
+        if (window.confirm("Tarik semula laporan ini ke status Draft? Anda boleh edit semula selepas itu.")) {
+            const res = await callAPI('unreportReport', { reportId: id });
+            if (res.success) {
+                notify("Laporan berjaya ditarik semula! Status: Draft");
+                fetchReports(user);
+                if (activeReport && activeReport.reportId === id) {
+                    setActiveReport({...activeReport, status: 'Draft'});
+                }
+            } else {
+                notify(res.message || "Gagal tarik semula laporan", "error");
+            }
+        }
+    };
+
+    const confirmSubmit = async (id) => {
+        if (window.confirm("Adakah anda pasti? Laporan akan dihantar untuk semakan GPK.")) {
+            const res = await callAPI('submitReport', { reportId: id });
+            if (res.success) {
+                notify("Laporan berjaya dihantar!");
+                fetchReports(user);
+            }
+        }
+    };
+
+    // ==========================================
+    // VIEW: CREATE FOLDER
+    // ==========================================
+    if (view === 'createFolder') {
+        return (
+            <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100 mt-10">
+                <h3 className="text-xl font-black mb-6 flex items-center">
+                    <Icon name="Plus" className="mr-2 text-indigo-600"/> 
+                    Cipta Tapak Minggu
+                </h3>
+                <form onSubmit={handleCreateFolder} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                            Tahun
+                        </label>
+                        <input 
+                            name="year" 
+                            type="number" 
+                            defaultValue={new Date().getFullYear()} 
+                            min="2020" 
+                            max="2050" 
+                            className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            required 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                            Minggu Ke
+                        </label>
+                        <input 
+                            name="weekNum" 
+                            type="number" 
+                            min="1" 
+                            max="56" 
+                            className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            required 
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button 
+                            type="button" 
+                            onClick={() => setView('list')} 
+                            className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <button 
+                            type="submit" 
+                            className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                        >
+                            Cipta Folder
+                        </button>
+                    </div>
+                </form>
+            </div>
+        );
+    }
+
+    // ==========================================
+    // VIEW: VIEW LOGS (Inside a specific report)
+    // ==========================================
+    if (view === 'view' && activeReport) {
+        return (
+            <div className="space-y-6">
+                {showLogForm && (
+                    <DailyLogForm 
+                        onSubmit={editingLog ? handleUpdateLog : handleAddLog}
+                        onClose={() => {
+                            setShowLogForm(false);
+                            setEditingLog(null);
+                        }}
+                        settings={settings}
+                        editingLog={editingLog}
+                    />
+                )}
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <button 
+                            onClick={() => {setView('list'); setActiveReport(null);}} 
+                            className="flex items-center text-indigo-600 hover:text-indigo-700 font-bold mb-2"
+                        >
+                            <Icon name="ArrowLeft" size={18} className="mr-1"/> 
+                            Kembali
+                        </button>
+                        <h3 className="text-2xl font-black text-slate-800">
+                            Minggu {activeReport.weekNum} ({activeReport.year})
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Status: <span className="font-bold">{activeReport.status}</span>
+                        </p>
+                    </div>
+                    {activeReport.status === 'Draft' && user.role === 'User' && (
+                        <button 
+                            onClick={() => {
+                                setEditingLog(null);
+                                setShowLogForm(true);
+                            }}
+                            disabled={user.status !== 'Active'}
+                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg ${
+                                user.status === 'Active'
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                            }`}
+                        >
+                            <Icon name="Plus" size={18}/> 
+                            Tambah Log Harian
+                        </button>
+                    )}
+                </div>
+
+                <div className="space-y-4">
+                    {activeReport.logs?.sort((a, b) => getDayNumber(a.day) - getDayNumber(b.day)).map((log, idx) => (
+                        <div key={idx} className="bg-white border-2 border-slate-300 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="bg-slate-100 px-6 py-4 border-b-2 border-slate-300 flex justify-between items-center">
+                                <h5 className="font-black text-slate-800 text-lg">
+                                    Laporan Harian #{idx + 1} - {log.day}
+                                    <span className="ml-3 text-sm text-slate-500 font-medium">
+                                        ({new Date(log.date).toLocaleDateString('ms-MY', { 
+                                            day: 'numeric', 
+                                            month: 'short', 
+                                            year: 'numeric' 
+                                        })})
+                                    </span>
+                                </h5>
+                                {activeReport.status === 'Draft' && user.role === 'User' && (
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => handleEditLog(log)}
+                                            disabled={user.status !== 'Active'}
+                                            className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 ${
+                                                user.status === 'Active'
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <Icon name="Edit" size={14}/> 
+                                            Edit
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteLog(log.logId)}
+                                            disabled={user.status !== 'Active'}
+                                            className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 ${
+                                                user.status === 'Active'
+                                                    ? 'bg-red-600 text-white hover:bg-red-700'
+                                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <Icon name="Trash2" size={14}/> 
+                                            Hapus
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-6">
+                                <div className="bg-slate-800 px-4 py-2 rounded-t-lg -mx-6 -mt-6 mb-4">
+                                    <h6 className="font-bold text-white uppercase text-xs tracking-wider flex items-center">
+                                        <Icon name="Calendar" size={14} className="mr-2"/> 
+                                        Maklumat Asas
+                                    </h6>
+                                </div>
+
+                                <table className="w-full text-sm mb-6">
+                                    <tbody>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">
+                                                Nama Penuh
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {user.fullName}
+                                            </td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Tarikh
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {new Date(log.date).toLocaleDateString('ms-MY', { 
+                                                    day: '2-digit', 
+                                                    month: '2-digit', 
+                                                    year: 'numeric' 
+                                                })}
+                                                <span className="ml-2 text-slate-500">({log.day})</span>
+                                            </td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Hari
+                                            </td>
+                                            <td className="p-3 font-semibold">{log.day}</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Lokasi
+                                            </td>
+                                            <td className="p-3 font-semibold">{log.location}</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Kehadiran
+                                            </td>
+                                            <td className="p-3 font-semibold">{log.attendance}</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Masa Masuk
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {formatTime12Hour(log.startTime)}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">
+                                                Masa Keluar
+                                            </td>
+                                            <td className="p-3 font-semibold">
+                                                {formatTime12Hour(log.endTime)}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left border-t-2 border-slate-300 min-w-[600px]">
+                                        <thead>
+                                            <tr className="bg-slate-700 text-white">
+                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>
+                                                    Masa
+                                                </th>
+                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>
+                                                    Tugasan
+                                                </th>
+                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>
+                                                    Catatan
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {log.tasks?.map((t, ti) => (
+                                                <tr key={ti} className="bg-white hover:bg-slate-50">
+                                                    <td className="p-3 border border-slate-300 font-bold text-indigo-700">
+                                                        {t.m || '-'}
+                                                    </td>
+                                                    <td className="p-3 border border-slate-300 font-medium text-slate-800">
+                                                        {t.t || '-'}
+                                                    </td>
+                                                    <td className="p-3 border border-slate-300 text-slate-600 italic">
+                                                        {t.c || '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {activeReport.logs?.length === 0 && (
+                        <div className="p-20 text-center border-2 border-dashed rounded-3xl text-slate-300 font-medium bg-white">
+                            Tiada log harian ditemui. Klik butang tambah di atas.
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // ==========================================
+    // VIEW: LIST (Default - Show all reports)
+    // ==========================================
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
+                {user.role === 'User' && (
+                    <button 
+                        onClick={() => setView('createFolder')} 
+                        disabled={user.status !== 'Active'}
+                        className={`px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform ${
+                            user.status === 'Active' 
+                                ? 'bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1' 
+                                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                        }`}
+                    >
+                        <Icon name="Plus" size={18} className="mr-2"/> 
+                        Cipta Folder
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reports
+                    .sort((a, b) => {
+                        if (b.year !== a.year) return b.year - a.year;
+                        return b.weekNum - a.weekNum;
+                    })
+                    .map((r) => (
+                        <div 
+                            key={r.reportId} 
+                            className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500"
+                        >
+                            <div className="p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h4 className="text-2xl font-black text-slate-800">
+                                            Minggu {r.weekNum}
+                                        </h4>
+                                        <p className="text-sm font-medium text-slate-400 italic">
+                                            Sesi {r.year}
+                                        </p>
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                        r.status === 'Draft' ? 'bg-slate-100 text-slate-500' : 
+                                        r.status === 'Submitted' ? 'bg-indigo-100 text-indigo-700' : 
+                                        'bg-emerald-100 text-emerald-700'
+                                    }`}>
+                                        {r.status}
+                                    </span>
+                                </div>
+                                <div className="space-y-3 pt-4 border-t border-slate-50">
+                                    <div className="flex items-center text-slate-500 text-xs font-medium">
+                                        <Icon name="Calendar" size={14} className="mr-2 text-indigo-400" /> 
+                                        ID: {r.reportId}
+                                    </div>
+                                    {r.submittedAt && (
+                                        <div className="flex items-center text-slate-500 text-xs font-medium">
+                                            <Icon name="Clock" size={14} className="mr-2 text-indigo-400" /> 
+                                            Hantar: {new Date(r.submittedAt).toLocaleString()}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className={`grid ${
+                                    r.status === 'Draft' ? 'grid-cols-2' : 
+                                    r.status === 'Submitted' ? 'grid-cols-2' : 
+                                    'grid-cols-1'
+                                } gap-3 mt-6`}>
+                                    <button 
+                                        onClick={() => {
+                                            setActiveReport(r); 
+                                            setView('view');
+                                        }} 
+                                        className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
+                                    >
+                                        Lihat Log
+                                    </button>
+                                    
+                                    {r.status === 'Draft' && user.role === 'User' && (
+                                        <button 
+                                            onClick={() => confirmSubmit(r.reportId)} 
+                                            disabled={user.status !== 'Active'}
+                                            className={`py-2.5 rounded-xl font-bold text-xs transition-colors ${
+                                                user.status === 'Active'
+                                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            Hantar
+                                        </button>
+                                    )}
+                                    
+                                    {r.status === 'Submitted' && user.role === 'User' && (
+                                        <button 
+                                            onClick={() => handleUnreport(r.reportId)}
+                                            className="py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            <Icon name="RotateCcw" size={14}/>
+                                            Tarik Semula
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                }
+            </div>
+        </div>
+    );
+};
+
 
 /* PART 3 */
 
