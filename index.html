@@ -392,13 +392,11 @@ const SidebarItem = ({ id, icon, label, roles }) => {
 
                     const payload = {
                         reportId: activeReport.reportId,
-                        userId: user.uid,
+                       userId: user.uid,
                         date: fd.get('date'),
                         day: fd.get('day'), // Auto-filled
                         location: fd.get('location'),
                         attendance: fd.get('attendance'),
-                        startTime: fd.get('startTime'),  // Hantar format 24-jam sahaja
-endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                         tasks: taskRows
                     };
 
@@ -447,12 +445,10 @@ endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
 
                     const payload = {
                         logId: editingLog.logId,
-                        date: fd.get('date'),
+                       date: fd.get('date'),
                         day: fd.get('day'),
                         location: fd.get('location'),
                         attendance: fd.get('attendance'),
-                        startTime: fd.get('startTime'),  // Hantar format 24-jam sahaja
-endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                         tasks: taskRows
                     };
 
@@ -636,15 +632,7 @@ endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
                                                 <td className="p-3 font-semibold">{log.attendance}</td>
                                             </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
-                                                <td className="p-3 font-semibold">{log.startTime || '-'}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
-                                                <td className="p-3 font-semibold">{log.endTime || '-'}</td>
-                                            </tr>
-                                        </tbody>
+                                           </tbody>
                                     </table>
 
                                     {/* Tugasan Table */}
@@ -1044,38 +1032,29 @@ endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                                                 </td>
                                             </tr>
                                             
-                                            {/* Masa Masuk */}
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
-                                                <td className="p-3">
-                                                    <input 
-                                                        name="startTime" 
-                                                        type="time"
-                                                        defaultValue={editingLog?.startTime || ''}
-                                                        placeholder="07:00"
-                                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
-                                                        required 
-                                                    />
-                                                </td>
-                                            </tr>
-                                            
-                                            {/* Masa Keluar */}
-                                            <tr>
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
-                                                <td className="p-3">
-                                                    <input 
-                                                        name="endTime" 
-                                                        type="time"
-                                                        defaultValue={editingLog?.endTime || ''}
-                                                        placeholder="16:05"
-                                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
-                                                        required 
-                                                    />
-                                                </td>
-                                            </tr>
+                                          {/* GPK (if role is User) */}
+                                            {user?.role === 'User' && (
+                                                <tr>
+                                                    <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">GPK Diselia</td>
+                                                    <td className="p-3">
+                                                        <select 
+                                                            name="gpk" 
+                                                            defaultValue={editingLog?.gpk || ''}
+                                                            className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
+                                                            required
+                                                        >
+                                                            <option value="">-- Pilih GPK --</option>
+                                                            {settings.gpks.map(g => <option key={g} value={g}>{g}</option>)}
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
+
+                                   {/* Section 2: Tasks (Dynamic Cards) */}
+                                <div className="space-y-4">
 
                                    {/* Section 2: Tasks (Dynamic Cards) */}
                                 <div className="space-y-4">
@@ -1270,17 +1249,9 @@ endTime: fd.get('endTime'),      // Backend simpan sebagai "07:00"
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
                                                 <td className="p-3 font-semibold">{log.location}</td>
                                             </tr>
-                                            <tr className="border-b border-slate-300">
+                                            <tr>
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
                                                 <td className="p-3 font-semibold">{log.attendance}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
-                                                <td className="p-3 font-semibold">{log.startTime || '-'}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
-                                                <td className="p-3 font-semibold">{log.endTime || '-'}</td>
                                             </tr>
                                         </tbody>
                                     </table>
