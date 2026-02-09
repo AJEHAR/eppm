@@ -1500,8 +1500,6 @@ const [filterWeek, setFilterWeek] = useState(getCurrentWeek());
                 if (cached) {
                     console.log(`📦 Cache HIT: Week ${week}, ${year}`);
                     setTrackingData(cached);
-                    setLoadingTracking(false);
-                    showToast('📦 Dimuat dari cache', 'info', 1500);
                     return;
                 }
             }
