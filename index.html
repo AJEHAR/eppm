@@ -13,24 +13,261 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* MODAL & ANIMATIONS */
+    .modal-show {
+        animation: modalFadeIn 0.2s ease-out forwards;
+    }
+    
+    .modal-hide {
+        animation: modalFadeOut 0.2s ease-in forwards;
+    }
+    
+    @keyframes modalFadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    @keyframes modalFadeOut {
+        from {
+            opacity: 1;
+            transform: scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+    }
+    
+    .animate-slide-up {
+        animation: slideUp 0.3s ease-out forwards;
+    }
+    
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+    
+    .animate-fade-out {
+        animation: fadeOut 0.3s ease-in forwards;
+    }
+    
+    .animate-scale-in {
+        animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+    
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .rotate-90 {
+        transform: rotate(90deg);
+        transition: transform 0.2s ease;
+    }
+</style>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+       const { useState, useEffect, useMemo } = React;
 
-        // Configuration
-        const API_URL = "https://script.google.com/macros/s/AKfycbwQDoFSx5gDD07lbAM44u8A-2CTRHgXuvHArkPluWUsnbnh3q8i89v_yFNiwjRq_1Ce/exec";
+// Configuration
+const API_URL = "https://script.google.com/macros/s/AKfycbwQDoFSx5gDD07lbAM44u8A-2CTRHgXuvHArkPluWUsnbnh3q8i89v_yFNiwjRq_1Ce/exec";
+
+const AVATARS = Array.from({ length: 30 }, (_, i) => 
+    `https://api.dicebear.com/7.x/notionists/svg?seed=${i + 150}&backgroundColor=b6e3f4,c0aede,d1d4f9`
+);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TRACKING CACHE SYSTEM
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const TrackingCache = {
+    maxEntries: 10,
+    
+    save(year, week, data) {
+        const key = `tracking_${year}_${week}`;
+        const entry = { data: data, timestamp: Date.now(), version: 1 };
         
-        const AVATARS = Array.from({ length: 30 }, (_, i) => 
-            `https://api.dicebear.com/7.x/notionists/svg?seed=${i + 150}&backgroundColor=b6e3f4,c0aede,d1d4f9`
-        );
+        try {
+            localStorage.setItem(key, JSON.stringify(entry));
+            this.cleanup();
+        } catch (e) {
+            console.error('Cache save failed:', e);
+            this.cleanup();
+            try {
+                localStorage.setItem(key, JSON.stringify(entry));
+            } catch (e2) {
+                console.error('Cache save failed after cleanup:', e2);
+            }
+        }
+    },
+    
+    get(year, week) {
+        const key = `tracking_${year}_${week}`;
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        
+        try {
+            const entry = JSON.parse(raw);
+            return entry.data;
+        } catch (e) {
+            console.error('Cache parse failed:', e);
+            localStorage.removeItem(key);
+            return null;
+        }
+    },
+    
+    invalidate(year, week) {
+        const key = `tracking_${year}_${week}`;
+        localStorage.removeItem(key);
+        console.log(`Cache invalidated: ${key}`);
+    },
+    
+    cleanup() {
+        const keys = Object.keys(localStorage)
+            .filter(k => k.startsWith('tracking_'))
+            .map(k => ({ key: k, timestamp: this.getTimestamp(k) }))
+            .sort((a, b) => b.timestamp - a.timestamp);
+        
+        if (keys.length > this.maxEntries) {
+            keys.slice(this.maxEntries).forEach(item => {
+                localStorage.removeItem(item.key);
+                console.log(`Cache cleaned: ${item.key}`);
+            });
+        }
+    },
+    
+    getTimestamp(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return 0;
+            const entry = JSON.parse(raw);
+            return entry.timestamp || 0;
+        } catch (e) {
+            return 0;
+        }
+    },
+    
+    clearAll() {
+        Object.keys(localStorage)
+            .filter(k => k.startsWith('tracking_'))
+            .forEach(k => localStorage.removeItem(k));
+        console.log('All tracking cache cleared');
+    }
+};
+
+const DetailCache = {
+    save(reportId, data) {
+        const key = `detail_${reportId}`;
+        try {
+            sessionStorage.setItem(key, JSON.stringify({ data: data, timestamp: Date.now() }));
+        } catch (e) {
+            console.error('Detail cache save failed:', e);
+        }
+    },
+    
+    get(reportId) {
+        const key = `detail_${reportId}`;
+        const raw = sessionStorage.getItem(key);
+        if (!raw) return null;
+        
+        try {
+            const entry = JSON.parse(raw);
+            return entry.data;
+        } catch (e) {
+            console.error('Detail cache parse failed:', e);
+            sessionStorage.removeItem(key);
+            return null;
+        }
+    },
+    
+    invalidate(reportId) {
+        const key = `detail_${reportId}`;
+        sessionStorage.removeItem(key);
+    },
+    
+    clear() {
+        Object.keys(sessionStorage)
+            .filter(k => k.startsWith('detail_'))
+            .forEach(k => sessionStorage.removeItem(k));
+        console.log('All detail cache cleared');
+    }
+};
+
+const UserPreferences = {
+    getAutoOpenNext() {
+        const saved = localStorage.getItem('pref_autoOpenNext');
+        return saved === null ? true : saved === 'true';
+    },
+    
+    setAutoOpenNext(value) {
+        localStorage.setItem('pref_autoOpenNext', value.toString());
+    },
+    
+    getCollapsedGroups() {
+        const saved = localStorage.getItem('pref_collapsedGroups');
+        return saved ? JSON.parse(saved) : {};
+    },
+    
+    setCollapsedGroups(groups) {
+        localStorage.setItem('pref_collapsedGroups', JSON.stringify(groups));
+    }
+};
+
+// Global tracking variables
+let currentTrackingData = null;
+let currentWeek = null;
+let currentYear = null;
+let currentReportId = null;
+let currentReportData = null;
 
     
 
@@ -1190,6 +1427,44 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                 );
             };
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPER FUNCTIONS - Toast & Utilities
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const showToast = (message, type = 'info', duration = 3000) => {
+    const colors = {
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        warning: 'bg-yellow-500',
+        info: 'bg-blue-500'
+    };
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 ${colors[type]} text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 animate-slide-up z-50 max-w-md`;
+    toast.innerHTML = `
+        <span class="text-2xl">${icons[type]}</span>
+        <span class="font-medium">${message}</span>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('animate-fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SEMAKAN LAPORAN COMPONENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
       const SemakanLaporan = () => {
     const [filterWeek, setFilterWeek] = useState('All');
     const [viewingReport, setViewingReport] = useState(null);
@@ -1304,16 +1579,40 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         <div className="space-y-6">
             {viewingReport && <ViewLogsModal report={viewingReport} onClose={() => setViewingReport(null)} />}
             
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h3 className="text-2xl font-black text-slate-800">Semakan Laporan</h3>
-                <div className="flex items-center space-x-2 bg-white px-4 py-2 border rounded-2xl shadow-sm">
-                    <Icon name="Calendar" size={18} className="text-slate-400" />
-                    <select value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)} className="bg-transparent border-none text-sm font-bold focus:ring-0">
-                        <option value="All">Semua Minggu</option>
-                        {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
-                    </select>
-                </div>
+           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        
+        <div>
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <span>📊</span>
+                <span>Semakan Laporan Mingguan</span>
+            </h1>
+            <p className="text-slate-600 text-sm mt-1">Semak dan luluskan laporan PPM di bawah seliaan anda</p>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3">
+            
+            <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-4 py-2 border">
+                <label className="text-sm font-medium text-slate-700">Minggu:</label>
+                <select id="weekSelector" 
+                        onChange={(e) => setFilterWeek(e.target.value)}
+                        className="bg-white border border-slate-300 rounded px-3 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="All">Semua</option>
+                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+                </select>
             </div>
+            
+            <button 
+                onClick={() => fetchReports(user)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-md hover:shadow-lg">
+                <Icon name="RefreshCw" size={18}/>
+                <span>Refresh</span>
+            </button>
+            
+        </div>
+        
+    </div>
+</div>
 
             {/* ✅ MOBILE: CARD LAYOUT, DESKTOP: TABLE LAYOUT */}
             
@@ -1445,9 +1744,92 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                     </div>
                 )}
             </div>
-        </div>
+       </div>
     );
-};    
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MODAL & REVIEW FUNCTIONS (Outside React Components)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function openReportDetailModal(reportId) {
+    const modal = document.getElementById('reportDetailModal');
+    const skeleton = document.getElementById('modalLoadingSkeleton');
+    const content = document.getElementById('modalReportData');
+    const footer = document.getElementById('modalReportFooter');
+    
+    if (!modal) return;
+    
+    currentReportId = reportId;
+    
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.classList.add('modal-show'), 10);
+    
+    skeleton.classList.remove('hidden');
+    content.classList.add('hidden');
+    footer.classList.add('hidden');
+    
+    showToast('⏳ Loading report details...', 'info', 1500);
+}
+
+function closeReportDetailModal() {
+    const modal = document.getElementById('reportDetailModal');
+    if (!modal) return;
+    
+    modal.classList.add('modal-hide');
+    setTimeout(() => {
+        modal.classList.remove('modal-show', 'modal-hide');
+        modal.classList.add('hidden');
+        currentReportId = null;
+        currentReportData = null;
+    }, 200);
+}
+
+function openSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    const toggle = document.getElementById('autoOpenNextToggle');
+    
+    if (!modal || !toggle) return;
+    
+    toggle.checked = UserPreferences.getAutoOpenNext();
+    
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.classList.add('modal-show'), 10);
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (!modal) return;
+    
+    modal.classList.add('modal-hide');
+    setTimeout(() => {
+        modal.classList.remove('modal-show', 'modal-hide');
+        modal.classList.add('hidden');
+    }, 200);
+}
+
+function saveAutoOpenPreference() {
+    const toggle = document.getElementById('autoOpenNextToggle');
+    if (!toggle) return;
+    
+    UserPreferences.setAutoOpenNext(toggle.checked);
+    
+    showToast(
+        toggle.checked ? 
+            '✅ Auto-buka laporan seterusnya diaktifkan' : 
+            '⚠️ Auto-buka laporan seterusnya dimatikan',
+        'info'
+    );
+}
+
+function submitReviewAction(action) {
+    showToast(`🔄 ${action === 'approve' ? 'Meluluskan' : 'Menolak'} laporan...`, 'info');
+    
+    setTimeout(() => {
+        showToast(`✅ Laporan berjaya ${action === 'approve' ? 'diluluskan' : 'ditolak'}!`, 'success');
+        closeReportDetailModal();
+    }, 1000);
+}
 
             const UserManagement = () => {
     const [allUsers, setAllUsers] = useState([]);
@@ -2357,6 +2739,140 @@ const SidebarItem = ({ id, icon, label, roles }) => {
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-    </script>
+
+                        
+   </script>
+    
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- GPK TRACKING MODALS -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    
+    <!-- REPORT DETAIL MODAL -->
+    <div id="reportDetailModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[300] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">📋</span>
+                    <div>
+                        <h2 class="text-xl font-bold" id="modalReportTitle">Laporan Mingguan</h2>
+                        <p class="text-sm opacity-90" id="modalReportSubtitle">Loading...</p>
+                    </div>
+                </div>
+                <button onclick="closeReportDetailModal()" 
+                        class="w-10 h-10 rounded-full hover:bg-white/20 transition flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="modalReportContent" class="flex-1 overflow-y-auto p-6">
+                <div id="modalLoadingSkeleton" class="space-y-4">
+                    <div class="animate-pulse space-y-4">
+                        <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+                        <div class="h-4 bg-slate-200 rounded w-1/2"></div>
+                        <div class="h-32 bg-slate-200 rounded"></div>
+                        <div class="h-4 bg-slate-200 rounded w-2/3"></div>
+                        <div class="h-32 bg-slate-200 rounded"></div>
+                    </div>
+                </div>
+                
+                <div id="modalReportData" class="hidden"></div>
+            </div>
+            
+            <div id="modalReportFooter" class="hidden border-t bg-slate-50 px-6 py-4">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        💬 Komen GPK (Opsional)
+                    </label>
+                    <textarea id="reviewComments" 
+                              rows="3" 
+                              class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                              placeholder="Tulis komen atau maklum balas untuk PPM..."></textarea>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <button onclick="closeReportDetailModal()" 
+                            class="px-6 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+                        Tutup
+                    </button>
+                    
+                    <div class="flex gap-3">
+                        <button onclick="submitReviewAction('reject')" 
+                                id="rejectButton"
+                                class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2">
+                            <span>❌</span>
+                            <span>Tolak</span>
+                        </button>
+                        <button onclick="submitReviewAction('approve')" 
+                                id="approveButton"
+                                class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                            <span>✅</span>
+                            <span>Lulus</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[300] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            
+            <div class="bg-gradient-to-r from-slate-700 to-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">⚙️</span>
+                    <h2 class="text-xl font-bold">Tetapan Semakan</h2>
+                </div>
+                <button onclick="closeSettingsModal()" 
+                        class="w-10 h-10 rounded-full hover:bg-white/20 transition flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                
+                <div class="flex items-start gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <input type="checkbox" 
+                           id="autoOpenNextToggle" 
+                           class="mt-1 w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                           onchange="saveAutoOpenPreference()">
+                    <div class="flex-1">
+                        <label for="autoOpenNextToggle" class="font-medium text-slate-800 cursor-pointer">
+                            Auto-buka laporan seterusnya
+                        </label>
+                        <p class="text-sm text-slate-600 mt-1">
+                            Selepas lulus/tolak laporan, sistem akan automatik membuka laporan "Dihantar" seterusnya untuk semakan berterusan.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div class="flex gap-3">
+                        <span class="text-2xl">💡</span>
+                        <div class="flex-1 text-sm text-slate-700">
+                            <p class="font-medium mb-1">Tips Produktiviti</p>
+                            <p>Aktifkan auto-buka untuk semak laporan dengan lebih pantas. Sistem akan membuka laporan seterusnya secara automatik, menjimatkan masa anda.</p>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <div class="border-t bg-slate-50 px-6 py-4 flex justify-end gap-3">
+                <button onclick="closeSettingsModal()" 
+                        class="px-6 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+                    Tutup
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
 </body>
 </html>
