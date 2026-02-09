@@ -2020,7 +2020,7 @@ const SemakanLaporan = () => {
                                     value={filterWeek} 
                                     onChange={(e) => handleWeekChange(e.target.value)}
                                     className="bg-white border border-slate-300 rounded px-3 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                    <option value="All">Semua</option>
+                                    </option>
                                     {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
                                 </select>
                             </div>
