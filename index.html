@@ -1548,11 +1548,11 @@ const SemakanLaporan = () => {
 
             console.log(`🌐 Fetching: Week ${week}, ${year}`);
             
-            const response = await callAPI('getWeeklyTrackingSummary', {
-                gpkReportingValue: user.fullName,
-                year: parseInt(year),
-                weekNum: parseInt(week)
-            });
+const response = await callAPI('getWeeklyTrackingSummary', {
+    gpkReportingValue: user.reportingGpk || user.fullName,  // ← Use reportingGpk instead
+    year: parseInt(year),
+    weekNum: parseInt(week)
+});
 
             if (response.success) {
                 setTrackingData(response);
@@ -2695,7 +2695,12 @@ const DailyLogCard = ({ log, index }) => (
             const ProfilePage = ({ user, setUser, callAPI, notify }) => {
                 const [isEditing, setIsEditing] = useState(false);
                 const [showPicker, setShowPicker] = useState(false);
-                const [formData, setFormData] = useState({ ...user });
+                const [formData, setFormData] = useState({
+    fullName: '',
+    position: '',
+    reportingGpk: '',
+    gpkCategory: ''  // NEW: "GPK HAL EHWAL MURID", "GPK PENTADBIRAN", etc
+});
 
                 useEffect(() => {
                     setFormData({ ...user });
