@@ -1462,7 +1462,7 @@ const showToast = (message, type = 'info', duration = 3000) => {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SEMAKAN LAPORAN COMPONENT
+// OPTIMIZED SEMAKAN LAPORAN COMPONENT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const SemakanLaporan = () => {
@@ -1472,14 +1472,14 @@ const SemakanLaporan = () => {
     const [trackingData, setTrackingData] = useState(null);
     const [loadingTracking, setLoadingTracking] = useState(false);
     const [errorTracking, setErrorTracking] = useState(null);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // FETCH TRACKING DATA (Optimized with Cache)
+    // FETCH TRACKING DATA (Optimized with Timeout)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     const fetchTrackingData = async (year, week, forceRefresh = false) => {
         if (user.role !== 'GPK' && user.role !== 'Admin') {
-            // User role - use old reports view
             return;
         }
 
@@ -1487,19 +1487,23 @@ const SemakanLaporan = () => {
         setErrorTracking(null);
 
         try {
-            // Check cache first
+            // Check cache first (skip if force refresh)
             if (!forceRefresh) {
                 const cached = TrackingCache.get(year, week);
                 if (cached) {
                     console.log(`📦 Cache HIT: Week ${week}, ${year}`);
                     setTrackingData(cached);
                     setLoadingTracking(false);
-                    showToast('📦 Dimuat dari cache', 'info', 2000);
+                    showToast('📦 Dimuat dari cache', 'info', 1500);
                     return;
                 }
             }
 
             console.log(`🌐 Fetching from server: Week ${week}, ${year}`);
+
+            // Add timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
             const response = await callAPI('getWeeklyTrackingSummary', {
                 gpkReportingValue: user.fullName,
@@ -1507,13 +1511,15 @@ const SemakanLaporan = () => {
                 weekNum: parseInt(week)
             });
 
+            clearTimeout(timeoutId);
+
             if (response.success) {
                 setTrackingData(response);
                 TrackingCache.save(year, week, response);
                 console.log(`💾 Cached: Week ${week}, ${year}`);
                 
                 if (!forceRefresh) {
-                    showToast('✅ Data berjaya dimuat', 'success', 2000);
+                    showToast('✅ Data berjaya dimuat', 'success', 1500);
                 }
             } else {
                 throw new Error(response.message || 'Gagal memuat data');
@@ -1521,14 +1527,19 @@ const SemakanLaporan = () => {
 
         } catch (error) {
             console.error('fetchTrackingData error:', error);
-            setErrorTracking(error.message);
+            
+            if (error.name === 'AbortError') {
+                setErrorTracking('Request timeout - cuba refresh semula');
+            } else {
+                setErrorTracking(error.message);
+            }
             
             // Try to use stale cache
             const cached = TrackingCache.get(year, week);
             if (cached) {
                 console.log('⚠️ Using stale cache due to error');
                 setTrackingData(cached);
-                showToast('⚠️ Menggunakan cache lama (offline)', 'warning', 3000);
+                showToast('⚠️ Menggunakan cache lama', 'warning', 3000);
             } else {
                 showToast('❌ Gagal memuat data', 'error');
             }
@@ -1538,14 +1549,18 @@ const SemakanLaporan = () => {
     };
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // LOAD LATEST WEEK ON MOUNT (GPK Only)
+    // LOAD LATEST WEEK ON MOUNT (GPK Only) - WITH SAFEGUARD
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     useEffect(() => {
+        // SAFEGUARD: Only run once
+        if (isInitialized) return;
+        
         if (user.role === 'GPK' || user.role === 'Admin') {
             loadLatestWeek();
+            setIsInitialized(true);
         }
-    }, [user]);
+    }, []); // Empty dependency array - runs ONCE only
 
     const loadLatestWeek = async () => {
         try {
@@ -1589,6 +1604,8 @@ const SemakanLaporan = () => {
         setFilterWeek(newWeek);
         if (newWeek !== 'All') {
             fetchTrackingData(filterYear, newWeek);
+        } else {
+            setTrackingData(null); // Clear tracking data when "All" selected
         }
     };
 
@@ -2020,7 +2037,7 @@ const SemakanLaporan = () => {
                                     value={filterWeek} 
                                     onChange={(e) => handleWeekChange(e.target.value)}
                                     className="bg-white border border-slate-300 rounded px-3 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                    </option>
+                                    <option value="All">Semua</option>
                                     {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
                                 </select>
                             </div>
@@ -2040,24 +2057,9 @@ const SemakanLaporan = () => {
                             <button 
                                 onClick={handleRefresh}
                                 disabled={loadingTracking}
-                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-md hover:shadow-lg disabled:opacity-50">
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
                                 <Icon name="RefreshCw" size={18} className={loadingTracking ? 'animate-spin' : ''}/>
-                                <span>Refresh</span>
-                            </button>
-                            
-                            <button 
-                                onClick={() => {
-                                    const modal = document.getElementById('settingsModal');
-                                    if (modal) {
-                                        const toggle = document.getElementById('autoOpenNextToggle');
-                                        if (toggle) toggle.checked = UserPreferences.getAutoOpenNext();
-                                        modal.classList.remove('hidden');
-                                        setTimeout(() => modal.classList.add('modal-show'), 10);
-                                    }
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition shadow-md hover:shadow-lg">
-                                <Icon name="Settings" size={18}/>
-                                <span>Tetapan</span>
+                                <span>{loadingTracking ? 'Loading...' : 'Refresh'}</span>
                             </button>
                             
                         </div>
@@ -2070,11 +2072,12 @@ const SemakanLaporan = () => {
                     <div className="bg-white rounded-xl shadow-md p-12 text-center">
                         <div className="animate-spin text-6xl mb-4">⏳</div>
                         <p className="text-slate-600 font-medium">Memuat data...</p>
+                        <p className="text-slate-400 text-sm mt-2">Sila tunggu sebentar</p>
                     </div>
                 )}
 
                 {/* Error State */}
-                {errorTracking && !trackingData && (
+                {errorTracking && !trackingData && !loadingTracking && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
                         <div className="text-red-600 text-5xl mb-4">⚠️</div>
                         <h3 className="text-lg font-semibold text-red-900 mb-2">Gagal Memuat Data</h3>
@@ -2190,7 +2193,7 @@ const SemakanLaporan = () => {
                                                             key={u.userId}
                                                             onClick={() => isClickable && openDetailModal(u.reportId)}
                                                             className={`flex items-center justify-between p-4 border rounded-lg transition ${
-                                                                isClickable ? 'cursor-pointer hover:bg-slate-50' : 'cursor-not-allowed opacity-60'
+                                                                isClickable ? 'cursor-pointer hover:bg-slate-50 hover:shadow-sm' : 'cursor-not-allowed opacity-60'
                                                             }`}>
                                                             <div className="flex items-center gap-4 flex-1">
                                                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold text-lg overflow-hidden">
@@ -2246,6 +2249,15 @@ const SemakanLaporan = () => {
                             )}
                         </div>
                     </>
+                )}
+
+                {/* Show instruction when "All" is selected */}
+                {filterWeek === 'All' && !trackingData && !loadingTracking && (
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-12 text-center">
+                        <div className="text-6xl mb-4">ℹ️</div>
+                        <h3 className="text-xl font-semibold text-blue-900 mb-2">Pilih Minggu Untuk Semakan</h3>
+                        <p className="text-blue-700">Sila pilih minggu tertentu di atas untuk melihat laporan PPM.</p>
+                    </div>
                 )}
             </div>
         );
@@ -2399,11 +2411,18 @@ const SemakanLaporan = () => {
             </div>
         </div>
     );
-};      
+};    
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MODAL & REVIEW FUNCTIONS - FULL VERSION
+// MODAL & REVIEW FUNCTIONS - OPTIMIZED VERSION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Global variables for current report state
+let currentReportId = null;
+let currentReportData = null;
+let currentYear = null;
+let currentWeek = null;
+let currentTrackingData = null;
 
 function closeReportDetailModal() {
     const modal = document.getElementById('reportDetailModal');
@@ -2445,7 +2464,7 @@ function saveAutoOpenPreference() {
 
 async function submitReviewAction(action) {
     if (!currentReportId || !currentReportData) {
-        showToast('Ralat: Data laporan tidak dijumpai', 'error');
+        showToast('❌ Ralat: Data laporan tidak dijumpai', 'error');
         return;
     }
     
@@ -2454,19 +2473,26 @@ async function submitReviewAction(action) {
     const rejectBtn = document.getElementById('rejectButton');
     
     // Disable buttons
-    approveBtn.disabled = true;
-    rejectBtn.disabled = true;
-    approveBtn.innerHTML = '<span class="animate-spin">⏳</span> <span>Memproses...</span>';
-    rejectBtn.innerHTML = '<span class="animate-spin">⏳</span> <span>Memproses...</span>';
+    if (approveBtn) {
+        approveBtn.disabled = true;
+        approveBtn.innerHTML = '<span class="animate-spin">⏳</span> <span>Memproses...</span>';
+    }
+    if (rejectBtn) {
+        rejectBtn.disabled = true;
+        rejectBtn.innerHTML = '<span class="animate-spin">⏳</span> <span>Memproses...</span>';
+    }
     
     try {
-        // Get current user from global state (access from React)
-        const appElement = document.getElementById('root');
-        if (!appElement || !appElement._reactRootContainer) {
-            throw new Error('Cannot access app state');
-        }
+        console.log('Submitting review:', {
+            reportId: currentReportId,
+            action: action,
+            comments: comments
+        });
         
-        // Call API
+        // Call API with timeout protection
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2474,12 +2500,19 @@ async function submitReviewAction(action) {
                 action: 'reviewReport',
                 payload: {
                     reportId: currentReportId,
-                    gpkName: currentReportData.fullName, // GPK name from report data
+                    gpkName: currentReportData.fullName,
                     action: action,
-                    comments: comments
+                    comments: comments || ''
                 }
-            })
+            }),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const result = await response.json();
         
@@ -2487,24 +2520,13 @@ async function submitReviewAction(action) {
             throw new Error(result.message || 'Gagal menyimpan semakan');
         }
         
-        // Update caches
-        if (currentTrackingData && currentYear && currentWeek) {
-            const users = currentTrackingData.users || [];
-            const userIndex = users.findIndex(u => u.reportId === currentReportId);
-            
-            if (userIndex !== -1) {
-                users[userIndex].status = 'Disemak';
-                users[userIndex].reviewedDate = new Date().toISOString();
-                users[userIndex].reviewedBy = currentReportData.fullName;
-                
-                TrackingCache.save(currentYear, currentWeek, currentTrackingData);
-            }
-        }
-        
+        // Update cache
         DetailCache.invalidate(currentReportId);
         
+        // Show success message
         showToast(`✅ Laporan berjaya ${action === 'approve' ? 'diluluskan' : 'ditolak'}!`, 'success');
         
+        // Close modal
         closeReportDetailModal();
         
         // Reload page to refresh data
@@ -2514,13 +2536,26 @@ async function submitReviewAction(action) {
         
     } catch (error) {
         console.error('submitReviewAction error:', error);
-        showToast('Gagal menyimpan semakan: ' + error.message, 'error');
+        
+        let errorMessage = 'Gagal menyimpan semakan';
+        
+        if (error.name === 'AbortError') {
+            errorMessage = 'Request timeout - sila cuba lagi';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        showToast('❌ ' + errorMessage, 'error');
         
         // Re-enable buttons
-        approveBtn.disabled = false;
-        rejectBtn.disabled = false;
-        approveBtn.innerHTML = '<span>✅</span> <span>Lulus</span>';
-        rejectBtn.innerHTML = '<span>❌</span> <span>Tolak</span>';
+        if (approveBtn) {
+            approveBtn.disabled = false;
+            approveBtn.innerHTML = '<span>✅</span> <span>Lulus</span>';
+        }
+        if (rejectBtn) {
+            rejectBtn.disabled = false;
+            rejectBtn.innerHTML = '<span>❌</span> <span>Tolak</span>';
+        }
     }
 }
             const UserManagement = () => {
