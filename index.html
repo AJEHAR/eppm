@@ -1466,7 +1466,14 @@ const showToast = (message, type = 'info', duration = 3000) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const SemakanLaporan = () => {
-    const [filterWeek, setFilterWeek] = useState('All');
+    const getCurrentWeek = () => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+    return Math.min(weekNum, 56);
+};
+
+const [filterWeek, setFilterWeek] = useState(getCurrentWeek());
     const [filterYear, setFilterYear] = useState(new Date().getFullYear());
     const [viewingReport, setViewingReport] = useState(null);
     const [trackingData, setTrackingData] = useState(null);
@@ -2037,7 +2044,6 @@ const SemakanLaporan = () => {
                                     value={filterWeek} 
                                     onChange={(e) => handleWeekChange(e.target.value)}
                                     className="bg-white border border-slate-300 rounded px-3 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                    <option value="All">Semua</option>
                                     {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
                                 </select>
                             </div>
@@ -2267,7 +2273,7 @@ const SemakanLaporan = () => {
     // RENDER: USER VIEW (Original Table Layout)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    const filtered = filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek);
+const filtered = reports.filter(r => r.weekNum == filterWeek);
 
     return (
         <div className="space-y-6">
@@ -2464,7 +2470,7 @@ function saveAutoOpenPreference() {
 
 async function submitReviewAction(action) {
     if (!currentReportId || !currentReportData) {
-        showToast('❌ Ralat: Data laporan tidak dijumpai', 'error');
+        showToast('Ralat: Data laporan tidak dijumpai', 'error');
         return;
     }
     
