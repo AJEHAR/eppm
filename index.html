@@ -1465,90 +1465,488 @@ const showToast = (message, type = 'info', duration = 3000) => {
 // SEMAKAN LAPORAN COMPONENT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      const SemakanLaporan = () => {
+const SemakanLaporan = () => {
     const [filterWeek, setFilterWeek] = useState('All');
+    const [filterYear, setFilterYear] = useState(new Date().getFullYear());
     const [viewingReport, setViewingReport] = useState(null);
+    const [trackingData, setTrackingData] = useState(null);
+    const [loadingTracking, setLoadingTracking] = useState(false);
+    const [errorTracking, setErrorTracking] = useState(null);
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // FETCH TRACKING DATA (Optimized with Cache)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    const fetchTrackingData = async (year, week, forceRefresh = false) => {
+        if (user.role !== 'GPK' && user.role !== 'Admin') {
+            // User role - use old reports view
+            return;
+        }
+
+        setLoadingTracking(true);
+        setErrorTracking(null);
+
+        try {
+            // Check cache first
+            if (!forceRefresh) {
+                const cached = TrackingCache.get(year, week);
+                if (cached) {
+                    console.log(`📦 Cache HIT: Week ${week}, ${year}`);
+                    setTrackingData(cached);
+                    setLoadingTracking(false);
+                    showToast('📦 Dimuat dari cache', 'info', 2000);
+                    return;
+                }
+            }
+
+            console.log(`🌐 Fetching from server: Week ${week}, ${year}`);
+
+            const response = await callAPI('getWeeklyTrackingSummary', {
+                gpkReportingValue: user.fullName,
+                year: parseInt(year),
+                weekNum: parseInt(week)
+            });
+
+            if (response.success) {
+                setTrackingData(response);
+                TrackingCache.save(year, week, response);
+                console.log(`💾 Cached: Week ${week}, ${year}`);
+                
+                if (!forceRefresh) {
+                    showToast('✅ Data berjaya dimuat', 'success', 2000);
+                }
+            } else {
+                throw new Error(response.message || 'Gagal memuat data');
+            }
+
+        } catch (error) {
+            console.error('fetchTrackingData error:', error);
+            setErrorTracking(error.message);
+            
+            // Try to use stale cache
+            const cached = TrackingCache.get(year, week);
+            if (cached) {
+                console.log('⚠️ Using stale cache due to error');
+                setTrackingData(cached);
+                showToast('⚠️ Menggunakan cache lama (offline)', 'warning', 3000);
+            } else {
+                showToast('❌ Gagal memuat data', 'error');
+            }
+        } finally {
+            setLoadingTracking(false);
+        }
+    };
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // LOAD LATEST WEEK ON MOUNT (GPK Only)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    useEffect(() => {
+        if (user.role === 'GPK' || user.role === 'Admin') {
+            loadLatestWeek();
+        }
+    }, [user]);
+
+    const loadLatestWeek = async () => {
+        try {
+            const response = await callAPI('getLatestWeekForGPK', {
+                gpkReportingValue: user.fullName
+            });
+
+            if (response.success) {
+                setFilterWeek(response.weekNum);
+                setFilterYear(response.year);
+                fetchTrackingData(response.year, response.weekNum);
+            } else {
+                // Fallback to current week
+                const now = new Date();
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+                
+                setFilterWeek(Math.min(weekNum, 56));
+                setFilterYear(now.getFullYear());
+                fetchTrackingData(now.getFullYear(), Math.min(weekNum, 56));
+            }
+        } catch (error) {
+            console.error('loadLatestWeek error:', error);
+            
+            // Fallback to current week
+            const now = new Date();
+            const startOfYear = new Date(now.getFullYear(), 0, 1);
+            const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+            
+            setFilterWeek(Math.min(weekNum, 56));
+            setFilterYear(now.getFullYear());
+            fetchTrackingData(now.getFullYear(), Math.min(weekNum, 56));
+        }
+    };
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // HANDLE WEEK/YEAR CHANGE
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    const handleWeekChange = (newWeek) => {
+        setFilterWeek(newWeek);
+        if (newWeek !== 'All') {
+            fetchTrackingData(filterYear, newWeek);
+        }
+    };
+
+    const handleYearChange = (newYear) => {
+        setFilterYear(newYear);
+        if (filterWeek !== 'All') {
+            fetchTrackingData(newYear, filterWeek);
+        }
+    };
+
+    const handleRefresh = () => {
+        if (filterWeek !== 'All') {
+            fetchTrackingData(filterYear, filterWeek, true);
+        } else {
+            fetchReports(user);
+        }
+    };
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // OPEN REPORT DETAIL MODAL
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    const openDetailModal = async (reportId) => {
+        const modal = document.getElementById('reportDetailModal');
+        const skeleton = document.getElementById('modalLoadingSkeleton');
+        const content = document.getElementById('modalReportData');
+        const footer = document.getElementById('modalReportFooter');
+        const title = document.getElementById('modalReportTitle');
+        const subtitle = document.getElementById('modalReportSubtitle');
+        
+        if (!modal) return;
+        
+        currentReportId = reportId;
+        
+        // Show modal
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.add('modal-show'), 10);
+        
+        // Reset state
+        skeleton.classList.remove('hidden');
+        content.classList.add('hidden');
+        footer.classList.add('hidden');
+        document.getElementById('reviewComments').value = '';
+        
+        try {
+            // Check cache first
+            let reportData = DetailCache.get(reportId);
+            
+            if (!reportData) {
+                console.log(`🌐 Fetching detail: ${reportId}`);
+                
+                const response = await callAPI('getReportDetail', { reportId });
+                
+                if (!response.success) {
+                    throw new Error(response.message || 'Gagal memuat laporan');
+                }
+                
+                reportData = response.report;
+                DetailCache.save(reportId, reportData);
+                console.log(`💾 Detail cached: ${reportId}`);
+            } else {
+                console.log(`📦 Detail cache HIT: ${reportId}`);
+            }
+            
+            currentReportData = reportData;
+            
+            // Update header
+            title.textContent = `Laporan: ${reportData.fullName}`;
+            subtitle.textContent = `Minggu ${reportData.weekNum}, ${reportData.year} • ${reportData.status}`;
+            
+            // Render content
+            renderReportDetailContent(reportData);
+            
+            // Hide skeleton, show content
+            skeleton.classList.add('hidden');
+            content.classList.remove('hidden');
+            
+            // Show footer only if status is "Submitted"
+            if (reportData.status === 'Submitted') {
+                footer.classList.remove('hidden');
+            }
+            
+        } catch (error) {
+            console.error('openDetailModal error:', error);
+            
+            skeleton.classList.add('hidden');
+            content.classList.remove('hidden');
+            content.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-red-600 text-6xl mb-4">⚠️</div>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-2">Gagal Memuat Laporan</h3>
+                    <p class="text-slate-600 mb-4">${error.message}</p>
+                    <button onclick="document.getElementById('reportDetailModal').classList.add('hidden')" 
+                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                        Tutup
+                    </button>
+                </div>
+            `;
+        }
+    };
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // RENDER REPORT DETAIL IN MODAL
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    const renderReportDetailContent = (report) => {
+        const container = document.getElementById('modalReportData');
+        if (!container) return;
+        
+        const logs = report.dailyLogs || [];
+        
+        const getStatusBadge = (status) => {
+            switch(status) {
+                case 'Draft':
+                    return '<span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">🟡 Draft</span>';
+                case 'Submitted':
+                    return '<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">🟢 Dihantar</span>';
+                case 'Reviewed':
+                    return '<span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">✅ Disemak</span>';
+                default:
+                    return '<span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">🔴 Belum Cipta</span>';
+            }
+        };
+        
+        let html = `
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <div>
+                        <div class="text-sm text-slate-600 mb-1">Status</div>
+                        <div class="font-semibold text-slate-800">
+                            ${getStatusBadge(report.status)}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-sm text-slate-600 mb-1">Tarikh Hantar</div>
+                        <div class="font-semibold text-slate-800">
+                            ${report.submittedAt ? new Date(report.submittedAt).toLocaleString('ms-MY', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }) : '-'}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-sm text-slate-600 mb-1">Jumlah Hari</div>
+                        <div class="font-semibold text-slate-800">
+                            ${logs.length} hari aktiviti
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                ${report.reviewedBy ? `
+                    <div class="mt-4 pt-4 border-t border-indigo-300">
+                        <div class="text-sm text-slate-600 mb-1">Disemak Oleh</div>
+                        <div class="font-semibold text-slate-800">${report.reviewedBy}</div>
+                        <div class="text-sm text-slate-600 mt-1">
+                            ${new Date(report.reviewedAt).toLocaleString('ms-MY', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="space-y-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <span>📅</span>
+                    <span>Aktiviti Mingguan</span>
+                </h3>
+        `;
+        
+        if (logs.length === 0) {
+            html += `
+                <div class="text-center py-8 bg-slate-50 rounded-lg">
+                    <div class="text-slate-400 text-5xl mb-2">📭</div>
+                    <p class="text-slate-600">Tiada aktiviti direkod untuk minggu ini.</p>
+                </div>
+            `;
+        } else {
+            logs.forEach((log, index) => {
+                html += `
+                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition">
+                        
+                        <div class="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold">
+                                    ${index + 1}
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-slate-800">${log.day}</h4>
+                                    <p class="text-sm text-slate-600">
+                                        ${new Date(log.date).toLocaleDateString('ms-MY', {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric'
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm text-slate-600">⏰ ${log.startTime} - ${log.endTime}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6">
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div class="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                                    <span class="text-2xl">📍</span>
+                                    <div>
+                                        <div class="text-xs text-slate-600">Lokasi</div>
+                                        <div class="font-semibold text-slate-800">${log.location}</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                                    <span class="text-2xl">👥</span>
+                                    <div>
+                                        <div class="text-xs text-slate-600">Kehadiran</div>
+                                        <div class="font-semibold text-slate-800">${log.attendance} orang</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${log.tasks && log.tasks.length > 0 ? `
+                                <div class="space-y-3">
+                                    <h5 class="font-semibold text-slate-700 text-sm uppercase tracking-wide">Aktiviti / Tugasan</h5>
+                                    ${log.tasks.map((task, ti) => {
+                                        if (!task.m && !task.t) return '';
+                                        return `
+                                            <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                                                <div class="flex items-start gap-3">
+                                                    <span class="text-2xl">${task.m || '⭐'}</span>
+                                                    <div class="flex-1">
+                                                        <p class="font-medium text-slate-800">${task.t || 'Tiada maklumat'}</p>
+                                                        ${task.c ? `
+                                                            <p class="text-sm text-slate-600 mt-2 pl-4 border-l-2 border-slate-300">
+                                                                💬 ${task.c}
+                                                            </p>
+                                                        ` : ''}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : `
+                                <div class="text-center py-4 bg-slate-50 rounded-lg text-slate-500 text-sm">
+                                    Tiada aktiviti direkod
+                                </div>
+                            `}
+                            
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `</div>`;
+        
+        container.innerHTML = html;
+    };
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // EXISTING VIEW LOGS MODAL (for User role)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     const ViewLogsModal = ({ report, onClose }) => {
         if (!report) return null;
         
         return (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
-                    <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-6 rounded-t-3xl flex justify-between items-center z-10">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl my-8 max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-6 rounded-t-3xl z-10 flex items-center justify-between shadow-lg">
                         <div>
-                            <h3 className="font-black text-xl">Log Harian - Minggu {report.weekNum} ({report.year})</h3>
-                            <p className="text-sm opacity-80">PPM: {report.ownerName || report.userId}</p>
+                            <h2 className="text-2xl font-black mb-1">📋 Detail Laporan</h2>
+                            <p className="text-sm opacity-90">Minggu {report.weekNum}, {report.year}</p>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
                             <Icon name="X" size={24}/>
                         </button>
                     </div>
 
-                    <div className="p-6 space-y-4">
+                    <div className="p-6 space-y-6">
                         {report.logs?.map((log, idx) => (
-                            <div key={idx} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
-                                <div className="bg-slate-100 px-4 py-2 border-b-2 border-slate-300">
-                                    <h5 className="font-bold text-slate-800">Log Harian #{idx + 1}</h5>
+                            <div key={idx} className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 p-4 border-b-2 border-slate-300">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-lg shadow-md">
+                                                {idx + 1}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-black text-indigo-900 text-lg">{log.day}</h3>
+                                                <p className="text-sm text-indigo-700 font-medium">{new Date(log.date).toLocaleDateString()}</p>
+                                            </div>
+                                        </div>
+                                        <span className="px-3 py-1 bg-white rounded-lg text-xs font-black text-indigo-700 shadow-sm">
+                                            LOG #{idx + 1}
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <div className="bg-slate-800 px-4 py-2 border-b-2 border-slate-300">
-                                    <h6 className="font-bold text-white uppercase text-xs tracking-wider">
-                                        <Icon name="Calendar" size={14} className="inline mr-2"/> Maklumat Asas
-                                    </h6>
-                                </div>
-                                
-                                {/* ✅ TABLE WRAPPER UNTUK MOBILE SCROLL */}
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm min-w-[500px]">
+                                <div className="p-6 bg-slate-50">
+                                    <table className="w-full border-collapse border-2 border-slate-300 bg-white rounded-lg overflow-hidden shadow-sm mb-4">
                                         <tbody>
                                             <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">Nama Penuh</td>
-                                                <td className="p-3 font-semibold">{report.ownerName || user.fullName}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
-                                                <td className="p-3 font-semibold">
-                                                    {new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                                    <span className="ml-2 text-slate-500">({log.day})</span>
-                                                </td>
-                                            </tr>
-                                            <tr className="border-b border-slate-300">
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
-                                                <td className="p-3 font-semibold">{log.day}</td>
+                                                <td className="p-3 font-semibold">{new Date(log.date).toLocaleDateString()}</td>
                                             </tr>
                                             <tr className="border-b border-slate-300">
                                                 <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
-                                                <td className="p-3 font-semibold">{log.location}</td>
+                                                <td className="p-3 font-semibold">{log.location || '-'}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
+                                                <td className="p-3 font-semibold">{log.attendance || '0'} orang</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-300">
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Masuk</td>
+                                                <td className="p-3 font-semibold">{log.startTime || '-'}</td>
                                             </tr>
                                             <tr>
-                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
-                                                <td className="p-3 font-semibold">{log.attendance}</td>
+                                                <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Masa Keluar</td>
+                                                <td className="p-3 font-semibold">{log.endTime || '-'}</td>
                                             </tr>
                                         </tbody>
                                     </table>
-                                </div>
 
-                                {/* ✅ TABLE TUGASAN - DENGAN HORIZONTAL SCROLL */}
-                                <div className="overflow-x-auto border-t-2 border-slate-300 mt-4">
-                                    <table className="w-full text-sm text-left min-w-[600px]">
-                                        <thead>
-                                            <tr className="bg-slate-700 text-white">
-                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>Masa</th>
-                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>Tugasan</th>
-                                                <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>Catatan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {log.tasks?.map((t, ti) => (
-                                                <tr key={ti} className="bg-white hover:bg-slate-50">
-                                                    <td className="p-3 border border-slate-300 font-bold text-indigo-700">{t.m || '-'}</td>
-                                                    <td className="p-3 border border-slate-300 font-medium text-slate-800">{t.t || '-'}</td>
-                                                    <td className="p-3 border border-slate-300 text-slate-600 italic">{t.c || '-'}</td>
+                                    <div className="overflow-x-auto border-t-2 border-slate-300 mt-4">
+                                        <table className="w-full text-sm text-left min-w-[600px]">
+                                            <thead>
+                                                <tr className="bg-slate-700 text-white">
+                                                    <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>Masa</th>
+                                                    <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>Tugasan</th>
+                                                    <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>Catatan</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {log.tasks?.map((t, ti) => (
+                                                    <tr key={ti} className="bg-white hover:bg-slate-50">
+                                                        <td className="p-3 border border-slate-300 font-bold text-indigo-700">{t.m || '-'}</td>
+                                                        <td className="p-3 border border-slate-300 font-medium text-slate-800">{t.t || '-'}</td>
+                                                        <td className="p-3 border border-slate-300 text-slate-600 italic">{t.c || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1573,50 +1971,308 @@ const showToast = (message, type = 'info', duration = 3000) => {
         }
     };
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // RENDER: GPK/ADMIN VIEW (Optimized Tracking Dashboard)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    if (user.role === 'GPK' || user.role === 'Admin') {
+        const users = trackingData?.users || [];
+        
+        // Calculate statistics
+        const stats = {
+            total: users.length,
+            belumCipta: users.filter(u => u.status === 'Belum Cipta').length,
+            draft: users.filter(u => u.status === 'Draft').length,
+            dihantar: users.filter(u => u.status === 'Dihantar').length,
+            disemak: users.filter(u => u.status === 'Disemak').length
+        };
+        
+        stats.percentage = stats.total > 0 ? Math.round((stats.disemak / stats.total) * 100) : 0;
+        
+        // Group by reportingGpk
+        const grouped = users.reduce((acc, user) => {
+            const gpk = user.reportingGpk || 'Tiada GPK';
+            if (!acc[gpk]) acc[gpk] = [];
+            acc[gpk].push(user);
+            return acc;
+        }, {});
+
+        return (
+            <div className="space-y-6">
+                
+                {/* Header with Controls */}
+                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                                <span>📊</span>
+                                <span>Semakan Laporan Mingguan</span>
+                            </h1>
+                            <p className="text-slate-600 text-sm mt-1">Semak dan luluskan laporan PPM di bawah seliaan anda</p>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-3">
+                            
+                            <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-4 py-2 border">
+                                <label className="text-sm font-medium text-slate-700">Minggu:</label>
+                                <select 
+                                    value={filterWeek} 
+                                    onChange={(e) => handleWeekChange(e.target.value)}
+                                    className="bg-white border border-slate-300 rounded px-3 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="All">Semua</option>
+                                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+                                </select>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-4 py-2 border">
+                                <label className="text-sm font-medium text-slate-700">Tahun:</label>
+                                <select 
+                                    value={filterYear}
+                                    onChange={(e) => handleYearChange(parseInt(e.target.value))}
+                                    className="bg-white border border-slate-300 rounded px-3 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    {[new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2].map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <button 
+                                onClick={handleRefresh}
+                                disabled={loadingTracking}
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-md hover:shadow-lg disabled:opacity-50">
+                                <Icon name="RefreshCw" size={18} className={loadingTracking ? 'animate-spin' : ''}/>
+                                <span>Refresh</span>
+                            </button>
+                            
+                            <button 
+                                onClick={() => {
+                                    const modal = document.getElementById('settingsModal');
+                                    if (modal) {
+                                        const toggle = document.getElementById('autoOpenNextToggle');
+                                        if (toggle) toggle.checked = UserPreferences.getAutoOpenNext();
+                                        modal.classList.remove('hidden');
+                                        setTimeout(() => modal.classList.add('modal-show'), 10);
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition shadow-md hover:shadow-lg">
+                                <Icon name="Settings" size={18}/>
+                                <span>Tetapan</span>
+                            </button>
+                            
+                        </div>
+                        
+                    </div>
+                </div>
+
+                {/* Loading State */}
+                {loadingTracking && (
+                    <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                        <div className="animate-spin text-6xl mb-4">⏳</div>
+                        <p className="text-slate-600 font-medium">Memuat data...</p>
+                    </div>
+                )}
+
+                {/* Error State */}
+                {errorTracking && !trackingData && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                        <div className="text-red-600 text-5xl mb-4">⚠️</div>
+                        <h3 className="text-lg font-semibold text-red-900 mb-2">Gagal Memuat Data</h3>
+                        <p className="text-red-700 mb-4">{errorTracking}</p>
+                        <button 
+                            onClick={() => handleRefresh()}
+                            className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                            Cuba Lagi
+                        </button>
+                    </div>
+                )}
+
+                {/* Dashboard Content */}
+                {!loadingTracking && trackingData && (
+                    <>
+                        {/* Statistics Bar */}
+                        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white mb-6 shadow-lg">
+                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                <span>📊</span>
+                                <span>Statistik Keseluruhan - Minggu {filterWeek}, {filterYear}</span>
+                            </h3>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                                <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold">{stats.total}</div>
+                                    <div className="text-sm opacity-90">Jumlah PPM</div>
+                                </div>
+                                <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold">{stats.dihantar}</div>
+                                    <div className="text-sm opacity-90">Dihantar</div>
+                                </div>
+                                <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold">{stats.disemak}</div>
+                                    <div className="text-sm opacity-90">Disemak</div>
+                                </div>
+                                <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold">{stats.draft}</div>
+                                    <div className="text-sm opacity-90">Draft</div>
+                                </div>
+                                <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold">{stats.belumCipta}</div>
+                                    <div className="text-sm opacity-90">Belum Cipta</div>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4">
+                                <div className="flex justify-between text-sm mb-2">
+                                    <span>Progress Semakan</span>
+                                    <span className="font-semibold">{stats.percentage}%</span>
+                                </div>
+                                <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+                                    <div className="bg-green-400 h-full rounded-full transition-all duration-500" 
+                                         style={{width: `${stats.percentage}%`}}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* User Groups */}
+                        <div className="space-y-4">
+                            {Object.entries(grouped).map(([gpkName, groupUsers]) => {
+                                const groupStats = {
+                                    dihantar: groupUsers.filter(u => u.status === 'Dihantar').length,
+                                    disemak: groupUsers.filter(u => u.status === 'Disemak').length,
+                                    total: groupUsers.length
+                                };
+                                
+                                return (
+                                    <div key={gpkName} className="bg-white rounded-lg shadow-md overflow-hidden">
+                                        <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <h3 className="text-lg font-semibold text-slate-800">{gpkName}</h3>
+                                                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                                                        {groupUsers.length} PPM
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-4 text-sm">
+                                                    <span className="text-green-600 font-medium">✅ {groupStats.disemak}</span>
+                                                    <span className="text-blue-600 font-medium">🟢 {groupStats.dihantar}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="p-6">
+                                            <div className="space-y-3">
+                                                {groupUsers.map(u => {
+                                                    let statusIcon = '';
+                                                    let statusClass = '';
+                                                    
+                                                    switch(u.status) {
+                                                        case 'Belum Cipta':
+                                                            statusIcon = '🔴';
+                                                            statusClass = 'bg-red-50 text-red-700 border-red-200';
+                                                            break;
+                                                        case 'Draft':
+                                                            statusIcon = '🟡';
+                                                            statusClass = 'bg-yellow-50 text-yellow-700 border-yellow-200';
+                                                            break;
+                                                        case 'Dihantar':
+                                                            statusIcon = '🟢';
+                                                            statusClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                                                            break;
+                                                        case 'Disemak':
+                                                            statusIcon = '✅';
+                                                            statusClass = 'bg-green-50 text-green-700 border-green-200';
+                                                            break;
+                                                    }
+                                                    
+                                                    const isClickable = u.reportId !== null;
+                                                    
+                                                    return (
+                                                        <div 
+                                                            key={u.userId}
+                                                            onClick={() => isClickable && openDetailModal(u.reportId)}
+                                                            className={`flex items-center justify-between p-4 border rounded-lg transition ${
+                                                                isClickable ? 'cursor-pointer hover:bg-slate-50' : 'cursor-not-allowed opacity-60'
+                                                            }`}>
+                                                            <div className="flex items-center gap-4 flex-1">
+                                                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold text-lg overflow-hidden">
+                                                                    {u.profilePic ? 
+                                                                        <img src={u.profilePic} alt={u.fullName} className="w-full h-full object-cover" /> :
+                                                                        u.fullName.charAt(0).toUpperCase()
+                                                                    }
+                                                                </div>
+                                                                
+                                                                <div className="flex-1">
+                                                                    <h4 className="font-semibold text-slate-800">{u.fullName}</h4>
+                                                                    <p className="text-sm text-slate-500">{u.position}</p>
+                                                                </div>
+                                                                
+                                                                <div className={`px-4 py-2 rounded-lg border ${statusClass} font-medium flex items-center gap-2`}>
+                                                                    <span>{statusIcon}</span>
+                                                                    <span>{u.status}</span>
+                                                                </div>
+                                                                
+                                                                {u.submittedDate && (
+                                                                    <div className="text-sm text-slate-600">
+                                                                        <div className="font-medium">Dihantar:</div>
+                                                                        <div>{new Date(u.submittedDate).toLocaleString('ms-MY', { 
+                                                                            day: 'numeric', 
+                                                                            month: 'short', 
+                                                                            hour: '2-digit', 
+                                                                            minute: '2-digit' 
+                                                                        })}</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {isClickable && (
+                                                                <div className="ml-4 text-slate-400">
+                                                                    <Icon name="ChevronRight" size={24}/>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            
+                            {users.length === 0 && (
+                                <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-12 text-center">
+                                    <div className="text-6xl mb-4">📭</div>
+                                    <h3 className="text-xl font-semibold text-slate-700 mb-2">Tiada Data</h3>
+                                    <p className="text-slate-600">Tiada PPM di bawah GPK ini untuk minggu yang dipilih.</p>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // RENDER: USER VIEW (Original Table Layout)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     const filtered = filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek);
 
     return (
         <div className="space-y-6">
             {viewingReport && <ViewLogsModal report={viewingReport} onClose={() => setViewingReport(null)} />}
             
-           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        
-        <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                <span>📊</span>
-                <span>Semakan Laporan Mingguan</span>
-            </h1>
-            <p className="text-slate-600 text-sm mt-1">Semak dan luluskan laporan PPM di bawah seliaan anda</p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-            
-            <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-4 py-2 border">
-                <label className="text-sm font-medium text-slate-700">Minggu:</label>
-                <select id="weekSelector" 
-                        onChange={(e) => setFilterWeek(e.target.value)}
-                        className="bg-white border border-slate-300 rounded px-3 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    <option value="All">Semua</option>
-                    {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
-                </select>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h3 className="text-2xl font-black text-slate-800">Semakan Laporan</h3>
+                <div className="flex items-center space-x-2 bg-white px-4 py-2 border rounded-2xl shadow-sm">
+                    <Icon name="Calendar" size={18} className="text-slate-400" />
+                    <select value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)} className="bg-transparent border-none text-sm font-bold focus:ring-0">
+                        <option value="All">Semua Minggu</option>
+                        {[...Array(56)].map((_, i) => <option key={i+1} value={i+1}>Minggu {i+1}</option>)}
+                    </select>
+                </div>
             </div>
-            
-            <button 
-                onClick={() => fetchReports(user)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-md hover:shadow-lg">
-                <Icon name="RefreshCw" size={18}/>
-                <span>Refresh</span>
-            </button>
-            
-        </div>
-        
-    </div>
-</div>
 
-            {/* ✅ MOBILE: CARD LAYOUT, DESKTOP: TABLE LAYOUT */}
-            
-            {/* DESKTOP TABLE - Hidden on Mobile */}
+            {/* Desktop Table */}
             <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -1679,11 +2335,10 @@ const showToast = (message, type = 'info', duration = 3000) => {
                 </div>
             </div>
 
-            {/* ✅ MOBILE CARD LAYOUT - Hidden on Desktop */}
+            {/* Mobile Cards */}
             <div className="md:hidden space-y-4">
                 {filtered.map(r => (
                     <div key={r.reportId} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                        {/* Header dengan Avatar */}
                         <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-50">
                             <div className="flex items-center space-x-3">
                                 <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm uppercase">
@@ -1701,7 +2356,6 @@ const showToast = (message, type = 'info', duration = 3000) => {
                             </span>
                         </div>
 
-                        {/* Details */}
                         <div className="space-y-3 mb-4">
                             <div className="flex justify-between items-center">
                                 <span className="text-xs font-bold text-slate-400 uppercase">Laporan</span>
@@ -1713,7 +2367,6 @@ const showToast = (message, type = 'info', duration = 3000) => {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex gap-2 pt-3 border-t border-slate-50">
                             <button 
                                 onClick={() => setViewingReport(r)}
@@ -1723,18 +2376,18 @@ const showToast = (message, type = 'info', duration = 3000) => {
                                 Lihat Log
                             </button>
                             {r.status === 'Submitted' && user.role === 'GPK' && (
-    <button 
-        onClick={() => handleReview(r.reportId)} 
-        disabled={user.status !== 'Active'}
-        className={`px-4 py-1.5 rounded-xl text-xs font-bold shadow-lg ${
-            user.status === 'Active'
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-50'
-                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-        }`}
-    >
-        Sahkan
-    </button>
-)}
+                                <button 
+                                    onClick={() => handleReview(r.reportId)} 
+                                    disabled={user.status !== 'Active'}
+                                    className={`px-4 py-1.5 rounded-xl text-xs font-bold shadow-lg ${
+                                        user.status === 'Active'
+                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-50'
+                                            : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                    }`}
+                                >
+                                    Sahkan
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -1744,33 +2397,13 @@ const showToast = (message, type = 'info', duration = 3000) => {
                     </div>
                 )}
             </div>
-       </div>
+        </div>
     );
-};
+};      
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MODAL & REVIEW FUNCTIONS (Outside React Components)
+// MODAL & REVIEW FUNCTIONS - FULL VERSION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-function openReportDetailModal(reportId) {
-    const modal = document.getElementById('reportDetailModal');
-    const skeleton = document.getElementById('modalLoadingSkeleton');
-    const content = document.getElementById('modalReportData');
-    const footer = document.getElementById('modalReportFooter');
-    
-    if (!modal) return;
-    
-    currentReportId = reportId;
-    
-    modal.classList.remove('hidden');
-    setTimeout(() => modal.classList.add('modal-show'), 10);
-    
-    skeleton.classList.remove('hidden');
-    content.classList.add('hidden');
-    footer.classList.add('hidden');
-    
-    showToast('⏳ Loading report details...', 'info', 1500);
-}
 
 function closeReportDetailModal() {
     const modal = document.getElementById('reportDetailModal');
@@ -1783,18 +2416,6 @@ function closeReportDetailModal() {
         currentReportId = null;
         currentReportData = null;
     }, 200);
-}
-
-function openSettingsModal() {
-    const modal = document.getElementById('settingsModal');
-    const toggle = document.getElementById('autoOpenNextToggle');
-    
-    if (!modal || !toggle) return;
-    
-    toggle.checked = UserPreferences.getAutoOpenNext();
-    
-    modal.classList.remove('hidden');
-    setTimeout(() => modal.classList.add('modal-show'), 10);
 }
 
 function closeSettingsModal() {
@@ -1822,15 +2443,86 @@ function saveAutoOpenPreference() {
     );
 }
 
-function submitReviewAction(action) {
-    showToast(`🔄 ${action === 'approve' ? 'Meluluskan' : 'Menolak'} laporan...`, 'info');
+async function submitReviewAction(action) {
+    if (!currentReportId || !currentReportData) {
+        showToast('Ralat: Data laporan tidak dijumpai', 'error');
+        return;
+    }
     
-    setTimeout(() => {
+    const comments = document.getElementById('reviewComments').value.trim();
+    const approveBtn = document.getElementById('approveButton');
+    const rejectBtn = document.getElementById('rejectButton');
+    
+    // Disable buttons
+    approveBtn.disabled = true;
+    rejectBtn.disabled = true;
+    approveBtn.innerHTML = '<span class="animate-spin">⏳</span> <span>Memproses...</span>';
+    rejectBtn.innerHTML = '<span class="animate-spin">⏳</span> <span>Memproses...</span>';
+    
+    try {
+        // Get current user from global state (access from React)
+        const appElement = document.getElementById('root');
+        if (!appElement || !appElement._reactRootContainer) {
+            throw new Error('Cannot access app state');
+        }
+        
+        // Call API
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'reviewReport',
+                payload: {
+                    reportId: currentReportId,
+                    gpkName: currentReportData.fullName, // GPK name from report data
+                    action: action,
+                    comments: comments
+                }
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Gagal menyimpan semakan');
+        }
+        
+        // Update caches
+        if (currentTrackingData && currentYear && currentWeek) {
+            const users = currentTrackingData.users || [];
+            const userIndex = users.findIndex(u => u.reportId === currentReportId);
+            
+            if (userIndex !== -1) {
+                users[userIndex].status = 'Disemak';
+                users[userIndex].reviewedDate = new Date().toISOString();
+                users[userIndex].reviewedBy = currentReportData.fullName;
+                
+                TrackingCache.save(currentYear, currentWeek, currentTrackingData);
+            }
+        }
+        
+        DetailCache.invalidate(currentReportId);
+        
         showToast(`✅ Laporan berjaya ${action === 'approve' ? 'diluluskan' : 'ditolak'}!`, 'success');
+        
         closeReportDetailModal();
-    }, 1000);
+        
+        // Reload page to refresh data
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('submitReviewAction error:', error);
+        showToast('Gagal menyimpan semakan: ' + error.message, 'error');
+        
+        // Re-enable buttons
+        approveBtn.disabled = false;
+        rejectBtn.disabled = false;
+        approveBtn.innerHTML = '<span>✅</span> <span>Lulus</span>';
+        rejectBtn.innerHTML = '<span>❌</span> <span>Tolak</span>';
+    }
 }
-
             const UserManagement = () => {
     const [allUsers, setAllUsers] = useState([]);
     const [filterStatus, setFilterStatus] = useState('All');
