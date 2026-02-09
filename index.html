@@ -3235,51 +3235,5 @@ const DailyLogCard = ({ log, index }) => (
 
                         
    </script>
-    
-    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-    <!-- GPK TRACKING MODALS -->
-    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-    
-    <!-- REPORT DETAIL MODAL -->
-            
-            <div class="p-6 space-y-4">
-                
-                <div class="flex items-start gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <input type="checkbox" 
-                           id="autoOpenNextToggle" 
-                           class="mt-1 w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
-                           onchange="saveAutoOpenPreference()">
-                    <div class="flex-1">
-                        <label for="autoOpenNextToggle" class="font-medium text-slate-800 cursor-pointer">
-                            Auto-buka laporan seterusnya
-                        </label>
-                        <p class="text-sm text-slate-600 mt-1">
-                            Selepas lulus/tolak laporan, sistem akan automatik membuka laporan "Dihantar" seterusnya untuk semakan berterusan.
-                        </p>
-                    </div>
-                </div>
-                
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div class="flex gap-3">
-                        <span class="text-2xl">💡</span>
-                        <div class="flex-1 text-sm text-slate-700">
-                            <p class="font-medium mb-1">Tips Produktiviti</p>
-                            <p>Aktifkan auto-buka untuk semak laporan dengan lebih pantas. Sistem akan membuka laporan seterusnya secara automatik, menjimatkan masa anda.</p>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
-            
-            <div class="border-t bg-slate-50 px-6 py-4 flex justify-end gap-3">
-                <button onclick="closeSettingsModal()" 
-                        class="px-6 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
-                    Tutup
-                </button>
-            </div>
-            
-        </div>
-    </div>
-
 </body>
 </html>
