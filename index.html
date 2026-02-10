@@ -1462,7 +1462,20 @@ const showToast = (message, type = 'info', duration = 3000) => {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SEMAKAN LAPORAN - PURE REACT 18 OPTIMIZED VERSION
+// SEMAKAN LAPORAN - FIXED VERSION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 
+// FIXES:
+// 1. ❌ BUANG auto-load data pada mount
+// 2. ✅ TAMBAH butang "Cari" untuk manual load
+// 3. ✅ FIX filter minggu - state management betul
+// 4. ✅ OPTIMIZE API calls - kurangkan bacaan
+// 5. ✅ STANDARDIZE UI - ikut format laporan harian PPM
+// 
+// CARA GUNA:
+// 1. Cari line "const SemakanLaporan = () => {" dalam fail index.html anda
+// 2. Replace keseluruhan component SemakanLaporan dengan code di bawah
+// 3. Jangan lupa check ReportDetailModal juga (ada fix berasingan)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const SemakanLaporan = () => {
@@ -1470,7 +1483,7 @@ const SemakanLaporan = () => {
     // STATE MANAGEMENT
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    const [filterWeek, setFilterWeek] = useState('All');
+    const [filterWeek, setFilterWeek] = useState('');  // ✅ START KOSONG - user kena pilih
     const [filterYear, setFilterYear] = useState(new Date().getFullYear());
     const [filterStatus, setFilterStatus] = useState('Semua');
     const [searchQuery, setSearchQuery] = useState('');
@@ -1481,7 +1494,9 @@ const SemakanLaporan = () => {
     const [autoOpenNext, setAutoOpenNext] = useState(
         () => JSON.parse(localStorage.getItem('autoOpenNext') || 'true')
     );
-    const [isInitialized, setIsInitialized] = useState(false);
+    
+    // For User role (original table view)
+    const [reports, setReports] = useState([]);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // COMPUTED VALUES WITH useMemo
@@ -1535,7 +1550,7 @@ const SemakanLaporan = () => {
         setErrorTracking(null);
 
         try {
-            // Check cache first
+            // Check cache first (unless force refresh)
             if (!forceRefresh) {
                 const cached = TrackingCache.get(year, week);
                 if (cached) {
@@ -1548,177 +1563,139 @@ const SemakanLaporan = () => {
 
             console.log(`🌐 Fetching: Week ${week}, ${year}`);
             
-const response = await callAPI('getWeeklyTrackingSummary', {
-    gpkReportingValue: user.reportingGpk || user.fullName,  // ← Use reportingGpk instead
-    year: parseInt(year),
-    weekNum: parseInt(week)
-});
+            const res = await callAPI('getWeeklyTrackingSummary', {
+                gpkReportingValue: user.reportingGpk || user.position,
+                year: year,
+                weekNum: week
+            });
 
-            if (response.success) {
-                setTrackingData(response);
-                TrackingCache.save(year, week, response);
-                showToast('✅ Data berjaya dimuat', 'success', 1500);
+            if (res.success) {
+                setTrackingData(res);
+                TrackingCache.save(year, week, res);
+                console.log(`✅ Loaded ${res.users?.length || 0} users`);
             } else {
-                throw new Error(response.message || 'Gagal memuat data');
+                throw new Error(res.message || 'Gagal memuat data');
             }
         } catch (error) {
-            console.error('Fetch error:', error);
-            setErrorTracking(error.message);
-            
-            // Fallback to stale cache
-            const cached = TrackingCache.get(year, week);
-            if (cached) {
-                setTrackingData(cached);
-                showToast('⚠️ Menggunakan cache lama', 'warning', 3000);
-            } else {
-                showToast('❌ Gagal memuat data', 'error');
-            }
+            console.error('❌ Tracking fetch error:', error);
+            setErrorTracking(error.message || 'Ralat tidak diketahui');
         } finally {
             setLoadingTracking(false);
         }
     };
-    
-    const fetchReportDetail = async (reportId) => {
+
+    // ✅ HANDLER UNTUK BUTANG CARI
+    const handleSearchClick = () => {
+        if (!filterWeek || filterWeek === '') {
+            notify('Sila pilih minggu terlebih dahulu', 'error');
+            return;
+        }
+        
+        const weekNumber = parseInt(filterWeek);
+        console.log(`🔍 Searching for Week ${weekNumber}, ${filterYear}`);
+        fetchTrackingData(filterYear, weekNumber, false); // false = check cache first
+    };
+
+    // ✅ HANDLER UNTUK REFRESH (force refresh)
+    const handleRefresh = () => {
+        if (!filterWeek || filterWeek === '') {
+            notify('Sila pilih minggu terlebih dahulu', 'error');
+            return;
+        }
+        
+        const weekNumber = parseInt(filterWeek);
+        console.log(`🔄 Force refreshing Week ${weekNumber}, ${filterYear}`);
+        fetchTrackingData(filterYear, weekNumber, true); // true = skip cache
+    };
+
+    const handleOpenReport = async (reportId) => {
+        if (!reportId) {
+            notify('Report ID tidak sah', 'error');
+            return;
+        }
+
         try {
-            // Check cache first
-            let reportData = DetailCache.get(reportId);
+            const res = await callAPI('getReportDetail', { reportId });
             
-            if (!reportData) {
-                console.log(`🌐 Fetching detail: ${reportId}`);
-                const response = await callAPI('getReportDetail', { reportId });
-                
-                if (!response.success) {
-                    throw new Error(response.message || 'Gagal memuat laporan');
-                }
-                
-                reportData = response.report;
-                DetailCache.save(reportId, reportData);
+            if (res.success) {
+                setSelectedReport(res.report);
             } else {
-                console.log(`📦 Detail cache HIT: ${reportId}`);
+                notify(res.message || 'Gagal memuat detail laporan', 'error');
             }
-            
-            return reportData;
         } catch (error) {
-            console.error('Fetch detail error:', error);
-            throw error;
+            console.error('Error fetching report detail:', error);
+            notify('Ralat: ' + error.message, 'error');
         }
     };
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // EVENT HANDLERS
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    
-    const handleWeekChange = (newWeek) => {
-        setFilterWeek(newWeek);
-        if (newWeek !== 'All') {
-            fetchTrackingData(filterYear, newWeek);
-        } else {
-            setTrackingData(null);
-        }
-    };
-    
-    const handleYearChange = (newYear) => {
-        setFilterYear(newYear);
-        if (filterWeek !== 'All') {
-            fetchTrackingData(newYear, filterWeek);
-        }
-    };
-    
-    const handleRefresh = () => {
-        if (filterWeek !== 'All') {
-            fetchTrackingData(filterYear, filterWeek, true);
-        }
-    };
-    
-    const handleOpenReport = async (reportId) => {
-        if (!reportId) return;
-        
-        try {
-            const reportData = await fetchReportDetail(reportId);
-            setSelectedReport(reportData);
-        } catch (error) {
-            showToast('❌ ' + error.message, 'error');
-        }
-    };
-    
     const handleCloseReport = () => {
         setSelectedReport(null);
     };
-    
+
     const handleReviewAction = async (action) => {
         if (!selectedReport) return;
-        
+
         try {
-            const response = await callAPI('reviewReport', {
+            const res = await callAPI('reviewReport', {
                 reportId: selectedReport.reportId,
-                gpkName: user.fullName,
                 action: action,
-                comments: '' // Can be extended to include comments
+                reviewerName: user.fullName
             });
-            
-            if (!response.success) {
-                throw new Error(response.message || 'Gagal menyimpan semakan');
-            }
-            
-            // Invalidate caches
-            DetailCache.invalidate(selectedReport.reportId);
-            TrackingCache.invalidate(filterYear, filterWeek);
-            
-            showToast(`✅ Laporan ${action === 'approve' ? 'diluluskan' : 'ditolak'}!`, 'success');
-            
-            // Auto-open next if enabled
-            if (autoOpenNext) {
-                const submittedReports = filteredUsers.filter(u => u.status === 'Dihantar');
-                const currentIndex = submittedReports.findIndex(u => u.reportId === selectedReport.reportId);
-                const nextReport = submittedReports[currentIndex + 1];
-                
-                if (nextReport) {
-                    setTimeout(() => handleOpenReport(nextReport.reportId), 300);
+
+            if (res.success) {
+                notify(
+                    action === 'approve' ? 'Laporan disahkan!' : 'Laporan dikembalikan',
+                    'success'
+                );
+
+                // Refresh tracking data
+                const weekNumber = parseInt(filterWeek);
+                fetchTrackingData(filterYear, weekNumber, true);
+
+                // Auto open next if enabled
+                if (autoOpenNext && action === 'approve') {
+                    const pendingUsers = users.filter(u => u.status === 'Dihantar');
+                    const currentIndex = pendingUsers.findIndex(
+                        u => u.reportId === selectedReport.reportId
+                    );
+                    
+                    if (currentIndex < pendingUsers.length - 1) {
+                        const nextUser = pendingUsers[currentIndex + 1];
+                        setTimeout(() => handleOpenReport(nextUser.reportId), 500);
+                    } else {
+                        handleCloseReport();
+                    }
                 } else {
                     handleCloseReport();
                 }
             } else {
-                handleCloseReport();
+                notify(res.message || 'Gagal memproses', 'error');
             }
-            
-            // Refresh data
-            setTimeout(() => handleRefresh(), 500);
-            
         } catch (error) {
             console.error('Review error:', error);
-            showToast('❌ ' + error.message, 'error');
+            notify('Ralat: ' + error.message, 'error');
         }
     };
-    
+
     const toggleAutoOpen = () => {
         const newValue = !autoOpenNext;
         setAutoOpenNext(newValue);
         localStorage.setItem('autoOpenNext', JSON.stringify(newValue));
-        showToast(
-            newValue ? '✅ Auto-buka diaktifkan' : '⚠️ Auto-buka dimatikan',
-            'info'
-        );
     };
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // INITIALIZATION
+    // USER ROLE - LOAD REPORTS (original behavior)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
     useEffect(() => {
-        if (isInitialized) return;
-        
-        if (user.role === 'GPK' || user.role === 'Admin') {
-            // Auto-fetch current week on mount
-            const now = new Date();
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
-            const currentWeek = Math.min(weekNum, 56);
-            
-            setFilterWeek(currentWeek);
-            fetchTrackingData(filterYear, currentWeek);
-            setIsInitialized(true);
+        if (user.role === 'User') {
+            callAPI('getReports', { userId: user.uid })
+                .then(res => {
+                    if (res.success) setReports(res.reports);
+                })
+                .catch(err => console.error('Error loading user reports:', err));
         }
-    }, []); // Runs once
+    }, []);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // RENDER: GPK/ADMIN VIEW
@@ -1737,34 +1714,46 @@ const response = await callAPI('getWeeklyTrackingSummary', {
                                 <span>Semakan Laporan Mingguan</span>
                             </h1>
                             <p className="text-slate-500 text-sm mt-1">
-                                Semak dan uruskan laporan PPM di bawah seliaan anda
+                                Pilih minggu dan klik "Cari" untuk melihat laporan
                             </p>
                         </div>
                         
                         <div className="flex flex-wrap items-center gap-3">
+                            {/* ✅ DROPDOWN MINGGU */}
                             <select 
                                 value={filterWeek} 
-                                onChange={(e) => handleWeekChange(e.target.value)}
+                                onChange={(e) => setFilterWeek(e.target.value)}
                                 className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
-                                <option value="All">Semua Minggu</option>
+                                <option value="">Pilih Minggu</option>
                                 {[...Array(56)].map((_, i) => (
                                     <option key={i+1} value={i+1}>Minggu {i+1}</option>
                                 ))}
                             </select>
                             
+                            {/* ✅ DROPDOWN TAHUN */}
                             <select 
                                 value={filterYear}
-                                onChange={(e) => handleYearChange(parseInt(e.target.value))}
+                                onChange={(e) => setFilterYear(parseInt(e.target.value))}
                                 className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                                 {[2026, 2025, 2024].map(y => (
                                     <option key={y} value={y}>{y}</option>
                                 ))}
                             </select>
                             
+                            {/* ✅ BUTANG CARI - BARU */}
+                            <button 
+                                onClick={handleSearchClick}
+                                disabled={loadingTracking || !filterWeek}
+                                className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl hover:from-indigo-700 hover:to-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-medium">
+                                <Icon name="Search" size={18} />
+                                <span>Cari</span>
+                            </button>
+                            
+                            {/* ✅ BUTANG REFRESH */}
                             <button 
                                 onClick={handleRefresh}
-                                disabled={loadingTracking}
-                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm disabled:opacity-50">
+                                disabled={loadingTracking || !filterWeek}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                 <Icon name="RefreshCw" size={18} className={loadingTracking ? 'animate-spin' : ''}/>
                                 <span className="hidden sm:inline">Refresh</span>
                             </button>
@@ -1772,40 +1761,51 @@ const response = await callAPI('getWeeklyTrackingSummary', {
                     </div>
                     
                     {/* Search & Filter Bar */}
-                    <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-1">
-                            <Icon name="Search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input 
-                                type="text"
-                                placeholder="Cari nama, ID, atau jawatan..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                            />
+                    {trackingData && (
+                        <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                            <div className="relative flex-1">
+                                <Icon name="Search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input 
+                                    type="text"
+                                    placeholder="Cari nama, ID, atau jawatan..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                />
+                            </div>
+                            
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                {['Semua', 'Dihantar', 'Disemak', 'Draft', 'Belum Cipta'].map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setFilterStatus(status)}
+                                        className={`px-4 py-2 rounded-xl text-xs font-medium transition whitespace-nowrap ${
+                                            filterStatus === status 
+                                                ? 'bg-indigo-600 text-white shadow-sm' 
+                                                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                        }`}>
+                                        {status}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        
-                        <div className="flex gap-2">
-                            {['Semua', 'Dihantar', 'Disemak', 'Draft', 'Belum Cipta'].map(status => (
-                                <button
-                                    key={status}
-                                    onClick={() => setFilterStatus(status)}
-                                    className={`px-4 py-2 rounded-xl text-xs font-medium transition ${
-                                        filterStatus === status 
-                                            ? 'bg-indigo-600 text-white shadow-sm' 
-                                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                                    }`}>
-                                    {status}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    )}
                 </div>
+
+                {/* ✅ INITIAL STATE - Belum pilih minggu */}
+                {!trackingData && !loadingTracking && !errorTracking && (
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 rounded-2xl p-12 text-center">
+                        <div className="text-6xl mb-4">🔍</div>
+                        <h3 className="text-xl font-semibold text-blue-900 mb-2">Pilih Minggu Untuk Semakan</h3>
+                        <p className="text-blue-700">Sila pilih minggu dan tahun di atas, kemudian klik butang <strong>"Cari"</strong> untuk melihat laporan PPM.</p>
+                    </div>
+                )}
 
                 {/* Loading State */}
                 {loadingTracking && (
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
                         <div className="animate-spin text-6xl mb-4">⏳</div>
-                        <p className="text-slate-600 font-medium">Memuat data...</p>
+                        <p className="text-slate-600 font-medium">Memuat data minggu {filterWeek}...</p>
                     </div>
                 )}
 
@@ -1823,66 +1823,57 @@ const response = await callAPI('getWeeklyTrackingSummary', {
                     </div>
                 )}
 
-                {/* Statistics */}
-                {!loadingTracking && trackingData && filterWeek !== 'All' && (
-                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span>📊</span>
-                            <span>Statistik - Minggu {filterWeek}, {filterYear}</span>
-                        </h3>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-                            <StatCard label="Jumlah PPM" value={stats.total} />
-                            <StatCard label="Dihantar" value={stats.dihantar} />
-                            <StatCard label="Disemak" value={stats.disemak} />
-                            <StatCard label="Draft" value={stats.draft} />
-                            <StatCard label="Belum Cipta" value={stats.belumCipta} />
-                        </div>
-                        
-                        <div className="mt-4">
-                            <div className="flex justify-between text-sm mb-2">
-                                <span>Progress Semakan</span>
-                                <span className="font-semibold">{stats.percentage}%</span>
+                {/* ✅ DATA LOADED - Statistics */}
+                {!loadingTracking && trackingData && filterWeek && (
+                    <>
+                        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                <span>📊</span>
+                                <span>Statistik - Minggu {filterWeek}, {filterYear}</span>
+                            </h3>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                                <StatCard label="Jumlah PPM" value={stats.total} />
+                                <StatCard label="Dihantar" value={stats.dihantar} />
+                                <StatCard label="Disemak" value={stats.disemak} />
+                                <StatCard label="Draft" value={stats.draft} />
+                                <StatCard label="Belum Cipta" value={stats.belumCipta} />
                             </div>
-                            <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
-                                <div 
-                                    className="bg-green-400 h-full rounded-full transition-all duration-500" 
-                                    style={{width: `${stats.percentage}%`}}
+                            
+                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium">Progress Keseluruhan</span>
+                                    <span className="text-lg font-bold">{stats.percentage}%</span>
+                                </div>
+                                <div className="w-full bg-white/20 rounded-full h-3">
+                                    <div 
+                                        className="bg-white h-3 rounded-full transition-all duration-500"
+                                        style={{ width: `${stats.percentage}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* User List */}
+                        <div className="space-y-4">
+                            {Object.entries(groupedUsers).map(([gpkName, groupUsers]) => (
+                                <UserGroupCard 
+                                    key={gpkName}
+                                    gpkName={gpkName}
+                                    users={groupUsers}
+                                    onOpenReport={handleOpenReport}
                                 />
-                            </div>
+                            ))}
+                            
+                            {filteredUsers.length === 0 && (
+                                <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center">
+                                    <div className="text-6xl mb-4">📭</div>
+                                    <h3 className="text-xl font-semibold text-slate-700 mb-2">Tiada Data</h3>
+                                    <p className="text-slate-600">Tiada PPM yang sepadan dengan carian anda.</p>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                )}
-
-                {/* User List */}
-                {!loadingTracking && trackingData && (
-                    <div className="space-y-4">
-                        {Object.entries(groupedUsers).map(([gpkName, groupUsers]) => (
-                            <UserGroupCard 
-                                key={gpkName}
-                                gpkName={gpkName}
-                                users={groupUsers}
-                                onOpenReport={handleOpenReport}
-                            />
-                        ))}
-                        
-                        {filteredUsers.length === 0 && (
-                            <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center">
-                                <div className="text-6xl mb-4">📭</div>
-                                <h3 className="text-xl font-semibold text-slate-700 mb-2">Tiada Data</h3>
-                                <p className="text-slate-600">Tiada PPM yang sepadan dengan carian anda.</p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Instruction when "All" selected */}
-                {filterWeek === 'All' && !loadingTracking && (
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-12 text-center">
-                        <div className="text-6xl mb-4">ℹ️</div>
-                        <h3 className="text-xl font-semibold text-blue-900 mb-2">Pilih Minggu Untuk Semakan</h3>
-                        <p className="text-blue-700">Sila pilih minggu tertentu di atas untuk melihat laporan PPM.</p>
-                    </div>
+                    </>
                 )}
 
                 {/* Report Detail Modal */}
@@ -1904,7 +1895,9 @@ const response = await callAPI('getWeeklyTrackingSummary', {
     // RENDER: USER VIEW (Original Table)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    const filtered = filterWeek === 'All' ? reports : reports.filter(r => r.weekNum == filterWeek);
+    const filtered = filterWeek === 'All' || filterWeek === '' 
+        ? reports 
+        : reports.filter(r => r.weekNum == filterWeek);
 
     return (
         <div className="space-y-6">
@@ -2000,7 +1993,138 @@ const response = await callAPI('getWeeklyTrackingSummary', {
                         </button>
                     </div>
                 ))}
+                {filtered.length === 0 && (
+                    <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center">
+                        <div className="text-6xl mb-4">📭</div>
+                        <p className="text-slate-600 font-medium">Tiada laporan menunggu semakan</p>
+                    </div>
+                )}
             </div>
+
+            {/* Report Detail Modal for User */}
+            {selectedReport && (
+                <ReportDetailModal 
+                    report={selectedReport}
+                    onClose={handleCloseReport}
+                    onApprove={() => handleReviewAction('approve')}
+                    onReject={() => handleReviewAction('reject')}
+                    autoOpenNext={autoOpenNext}
+                    onToggleAutoOpen={toggleAutoOpen}
+                />
+            )}
+        </div>
+    );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPER COMPONENTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const StatCard = ({ label, value }) => (
+    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+        <p className="text-2xl font-bold mb-1">{value}</p>
+        <p className="text-xs opacity-80">{label}</p>
+    </div>
+);
+
+const StatusBadge = ({ status }) => {
+    const styles = {
+        'Draft': 'bg-slate-100 text-slate-600',
+        'Submitted': 'bg-blue-100 text-blue-700',
+        'Dihantar': 'bg-blue-100 text-blue-700',
+        'Reviewed': 'bg-green-100 text-green-700',
+        'Disemak': 'bg-green-100 text-green-700',
+        'Belum Cipta': 'bg-orange-100 text-orange-700'
+    };
+    
+    return (
+        <span className={`px-3 py-1 rounded-full text-xs font-bold ${styles[status] || 'bg-gray-100 text-gray-600'}`}>
+            {status}
+        </span>
+    );
+};
+
+const UserGroupCard = ({ gpkName, users, onOpenReport }) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    
+    return (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between hover:bg-slate-100 transition">
+                <div className="flex items-center gap-3">
+                    <span className="text-lg font-bold text-slate-800">{gpkName}</span>
+                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold">
+                        {users.length} PPM
+                    </span>
+                </div>
+                <Icon 
+                    name="ChevronDown" 
+                    size={20} 
+                    className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                />
+            </button>
+            
+            {isExpanded && (
+                <div className="divide-y divide-slate-100">
+                    {users.map(user => (
+                        <UserRow key={user.userId} user={user} onOpenReport={onOpenReport} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const UserRow = ({ user, onOpenReport }) => {
+    const canView = user.status !== 'Belum Cipta';
+    
+    return (
+        <div className="px-6 py-4 hover:bg-slate-50/50 transition-colors">
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {user.profilePic ? (
+                        <img 
+                            src={user.profilePic} 
+                            alt={user.fullName}
+                            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                        />
+                    ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                            {user.fullName.substring(0, 2).toUpperCase()}
+                        </div>
+                    )}
+                    
+                    <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-800 truncate">{user.fullName}</p>
+                        <p className="text-xs text-slate-500 truncate">{user.position}</p>
+                    </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                    <StatusBadge status={user.status} />
+                    
+                    {canView && (
+                        <button
+                            onClick={() => onOpenReport(user.reportId)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0">
+                            <Icon name="Eye" size={20} />
+                        </button>
+                    )}
+                </div>
+            </div>
+            
+            {user.submittedDate && (
+                <p className="text-xs text-slate-400 mt-2 ml-13">
+                    Dihantar: {new Date(user.submittedDate).toLocaleDateString('ms-MY', { 
+                        day: 'numeric', 
+                        month: 'short', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}
+                </p>
+            )}
         </div>
     );
 };
@@ -2128,89 +2252,405 @@ const UserCard = ({ user, onOpenReport }) => {
     );
 };
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// REPORT DETAIL MODAL - FIXED VERSION (UI KONSISTEN)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 
+// FIXES:
+// ✅ UI follow format laporan harian PPM (TaskCard style)
+// ✅ Consistent card design
+// ✅ Better mobile responsiveness
+// 
+// CARA GUNA:
+// 1. Cari component "const ReportDetailModal" dalam fail index.html anda
+// 2. Replace keseluruhan component dengan code di bawah
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 const ReportDetailModal = ({ report, onClose, onApprove, onReject, autoOpenNext, onToggleAutoOpen }) => {
-    const [isApproving, setIsApproving] = useState(false);
-    const [isRejecting, setIsRejecting] = useState(false);
-    
-    const handleApprove = async () => {
-        setIsApproving(true);
-        await onApprove();
-        setIsApproving(false);
+    const [activeTab, setActiveTab] = useState('view'); // 'view' or 'print'
+    const printRef = React.useRef(null);
+
+    const handlePrint = () => {
+        if (printRef.current) {
+            const printContent = printRef.current.innerHTML;
+            const printWindow = window.open('', '', 'width=800,height=600');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Laporan Mingguan - ${report.fullName} - Minggu ${report.weekNum}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                        .info { margin-bottom: 20px; }
+                        .day-section { margin-bottom: 30px; page-break-inside: avoid; }
+                        .day-header { background: #f1f5f9; padding: 10px; font-weight: bold; margin-bottom: 10px; }
+                        .task-item { margin-bottom: 15px; padding: 10px; border: 1px solid #e2e8f0; }
+                        .task-row { display: flex; gap: 15px; margin-bottom: 8px; }
+                        .task-label { font-weight: bold; min-width: 80px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f8f9fa; }
+                        @media print {
+                            .no-print { display: none; }
+                            .day-section { page-break-inside: avoid; }
+                        }
+                    </style>
+                </head>
+                <body>${printContent}</body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
     };
-    
-    const handleReject = async () => {
-        setIsRejecting(true);
-        await onReject();
-        setIsRejecting(false);
-    };
-    
+
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-            
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden relative z-10 flex flex-col animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col modal-show">
                 
                 {/* Header */}
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 flex items-center justify-between border-b">
-                    <div>
-                        <h2 className="text-xl font-bold">📋 {report.fullName}</h2>
-                        <p className="text-sm opacity-90">Minggu {report.weekNum}, {report.year} • {report.status}</p>
+                <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-6 py-5 flex items-center justify-between flex-shrink-0">
+                    <div className="flex items-center gap-4">
+                        {report.profilePic ? (
+                            <img 
+                                src={report.profilePic} 
+                                alt={report.fullName}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-white/30"
+                            />
+                        ) : (
+                            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center font-bold border-2 border-white/30">
+                                {report.fullName.substring(0, 2).toUpperCase()}
+                            </div>
+                        )}
+                        <div>
+                            <h2 className="text-xl font-bold">{report.fullName}</h2>
+                            <p className="text-sm opacity-90">
+                                {report.position} • Minggu {report.weekNum}, {report.year}
+                            </p>
+                        </div>
                     </div>
-                    <button 
+                    
+                    <button
                         onClick={onClose}
-                        className="w-10 h-10 rounded-full hover:bg-white/20 transition flex items-center justify-center">
+                        className="p-2 hover:bg-white/20 rounded-lg transition-colors">
                         <Icon name="X" size={24} />
                     </button>
                 </div>
-                
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    <ReportContent report={report} />
+
+                {/* Tabs */}
+                <div className="flex border-b border-slate-200 px-6 flex-shrink-0 bg-white">
+                    <button
+                        onClick={() => setActiveTab('view')}
+                        className={`px-6 py-3 font-semibold transition-all ${
+                            activeTab === 'view'
+                                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}>
+                        👁️ Lihat Laporan
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('print')}
+                        className={`px-6 py-3 font-semibold transition-all ${
+                            activeTab === 'print'
+                                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}>
+                        🖨️ Cetak Laporan
+                    </button>
                 </div>
-                
-                {/* Footer */}
-                {report.status === 'Submitted' && (
-                    <div className="border-t bg-slate-50 px-6 py-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-slate-700">Auto-buka seterusnya:</span>
-                                <button 
-                                    onClick={onToggleAutoOpen}
-                                    className={`w-12 h-6 rounded-full transition-colors relative ${autoOpenNext ? 'bg-indigo-600' : 'bg-slate-300'}`}>
-                                    <div className={`absolute top-1 bg-white w-4 h-4 rounded-full transition-transform ${autoOpenNext ? 'left-7' : 'left-1'}`} />
-                                </button>
-                            </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+                    {activeTab === 'view' && (
+                        <div className="space-y-4">
+                            {/* ✅ IKUT FORMAT LAPORAN HARIAN - TaskCard Style */}
+                            {report.dailyLogs.map((log, dayIndex) => (
+                                <div key={dayIndex} className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm overflow-hidden">
+                                    {/* Day Header */}
+                                    <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b-2 border-slate-200">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-lg font-bold text-slate-800">
+                                                    {log.day}
+                                                </h3>
+                                                <p className="text-sm text-slate-600">
+                                                    📅 {new Date(log.date).toLocaleDateString('ms-MY', { 
+                                                        day: 'numeric', 
+                                                        month: 'long', 
+                                                        year: 'numeric' 
+                                                    })}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wide">Kehadiran</p>
+                                                <p className={`text-sm font-bold ${
+                                                    log.attendance === 'Hadir' ? 'text-green-600' : 'text-red-600'
+                                                }`}>
+                                                    {log.attendance === 'Hadir' ? '✅ Hadir' : '❌ Tidak Hadir'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Log Details */}
+                                    <div className="p-6 space-y-4">
+                                        {/* Location & Time */}
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 border-b border-slate-100">
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                    📍 Lokasi
+                                                </p>
+                                                <p className="text-sm font-medium text-slate-700">{log.location || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                    🕐 Masa Mula
+                                                </p>
+                                                <p className="text-sm font-medium text-slate-700">{log.startTime || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                    🕑 Masa Tamat
+                                                </p>
+                                                <p className="text-sm font-medium text-slate-700">{log.endTime || '-'}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* ✅ TASKS - IKUT FORMAT TaskCard COMPONENT */}
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                                                📝 Tugasan Harian
+                                            </p>
+                                            <div className="space-y-3">
+                                                {log.tasks && log.tasks.length > 0 ? (
+                                                    log.tasks.map((task, taskIndex) => (
+                                                        <div 
+                                                            key={taskIndex}
+                                                            className="bg-white border-2 border-slate-200 rounded-2xl p-4 hover:border-indigo-300 transition-all shadow-sm hover:shadow-md">
+                                                            {/* Task Number Badge */}
+                                                            <div className="flex items-start justify-between mb-3">
+                                                                <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-black">
+                                                                    #{taskIndex + 1}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Task Details */}
+                                                            <div className="space-y-3">
+                                                                {/* Waktu */}
+                                                                <div>
+                                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                                                        Waktu
+                                                                    </label>
+                                                                    <p className="text-sm font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                                                        {task.m || '-'}
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Tugasan */}
+                                                                <div>
+                                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                                                        Tugasan
+                                                                    </label>
+                                                                    <p className="text-sm font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200 whitespace-pre-wrap">
+                                                                        {task.t || '-'}
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Catatan */}
+                                                                {task.c && (
+                                                                    <div>
+                                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                                                            Catatan
+                                                                        </label>
+                                                                        <p className="text-sm italic text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 whitespace-pre-wrap">
+                                                                            {task.c}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-8 text-center">
+                                                        <p className="text-slate-400 text-sm">Tiada tugasan direkodkan</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {report.dailyLogs.length === 0 && (
+                                <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center">
+                                    <div className="text-6xl mb-4">📭</div>
+                                    <h3 className="text-xl font-semibold text-slate-700 mb-2">Tiada Log Harian</h3>
+                                    <p className="text-slate-600">Laporan ini belum mempunyai sebarang log harian.</p>
+                                </div>
+                            )}
                         </div>
+                    )}
+
+                    {activeTab === 'print' && (
+                        <div className="bg-white rounded-2xl p-8 shadow-sm">
+                            <div ref={printRef}>
+                                {/* Print Header */}
+                                <div className="header">
+                                    <h1 style={{margin: 0, fontSize: '24px'}}>LAPORAN MINGGUAN PPM</h1>
+                                    <p style={{margin: '5px 0 0 0', color: '#666'}}>
+                                        SEKOLAH KEBANGSAAN PENDIDIKAN KHAS KUANTAN
+                                    </p>
+                                </div>
+
+                                {/* Report Info */}
+                                <div className="info">
+                                    <table style={{width: '100%', marginBottom: '20px'}}>
+                                        <tr>
+                                            <td style={{fontWeight: 'bold', width: '150px'}}>Nama:</td>
+                                            <td>{report.fullName}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style={{fontWeight: 'bold'}}>Jawatan:</td>
+                                            <td>{report.position}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style={{fontWeight: 'bold'}}>Minggu / Tahun:</td>
+                                            <td>Minggu {report.weekNum}, {report.year}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style={{fontWeight: 'bold'}}>Status:</td>
+                                            <td>{report.status}</td>
+                                        </tr>
+                                        {report.submittedAt && (
+                                            <tr>
+                                                <td style={{fontWeight: 'bold'}}>Tarikh Hantar:</td>
+                                                <td>{new Date(report.submittedAt).toLocaleString('ms-MY')}</td>
+                                            </tr>
+                                        )}
+                                    </table>
+                                </div>
+
+                                {/* Daily Logs */}
+                                {report.dailyLogs.map((log, idx) => (
+                                    <div key={idx} className="day-section">
+                                        <div className="day-header">
+                                            {log.day} - {new Date(log.date).toLocaleDateString('ms-MY', { 
+                                                day: 'numeric', 
+                                                month: 'long', 
+                                                year: 'numeric' 
+                                            })}
+                                        </div>
+                                        
+                                        <table>
+                                            <tr>
+                                                <th style={{width: '120px'}}>Lokasi</th>
+                                                <td>{log.location || '-'}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Kehadiran</th>
+                                                <td>{log.attendance}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Masa Mula</th>
+                                                <td>{log.startTime || '-'}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Masa Tamat</th>
+                                                <td>{log.endTime || '-'}</td>
+                                            </tr>
+                                        </table>
+
+                                        {log.tasks && log.tasks.length > 0 && (
+                                            <div style={{marginTop: '15px'}}>
+                                                <strong>Tugasan:</strong>
+                                                {log.tasks.map((task, taskIdx) => (
+                                                    <div key={taskIdx} className="task-item">
+                                                        <div className="task-row">
+                                                            <span className="task-label">Waktu:</span>
+                                                            <span>{task.m || '-'}</span>
+                                                        </div>
+                                                        <div className="task-row">
+                                                            <span className="task-label">Tugasan:</span>
+                                                            <span>{task.t || '-'}</span>
+                                                        </div>
+                                                        {task.c && (
+                                                            <div className="task-row">
+                                                                <span className="task-label">Catatan:</span>
+                                                                <span style={{fontStyle: 'italic'}}>{task.c}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Footer */}
+                                <div style={{marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #ddd'}}>
+                                    <p style={{fontSize: '12px', color: '#666'}}>
+                                        Dokumen dijana pada: {new Date().toLocaleString('ms-MY')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handlePrint}
+                                className="mt-6 w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2 no-print">
+                                <Icon name="Printer" size={20} />
+                                Cetak Laporan
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer Actions */}
+                {report.status === 'Submitted' || report.status === 'Dihantar' ? (
+                    <div className="bg-white border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 flex-shrink-0">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={autoOpenNext}
+                                onChange={onToggleAutoOpen}
+                                className="w-4 h-4 text-indigo-600 rounded"
+                            />
+                            <span className="text-sm text-slate-600">Auto buka laporan seterusnya</span>
+                        </label>
                         
                         <div className="flex gap-3">
-                            <button 
-                                onClick={handleReject}
-                                disabled={isRejecting || isApproving}
-                                className="flex-1 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50">
-                                {isRejecting ? (
-                                    <><span className="animate-spin">⏳</span> <span>Memproses...</span></>
-                                ) : (
-                                    <><Icon name="X" size={20} /> <span>Tolak</span></>
-                                )}
+                            <button
+                                onClick={onReject}
+                                className="px-6 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition shadow-sm">
+                                ❌ Kembalikan
                             </button>
-                            <button 
-                                onClick={handleApprove}
-                                disabled={isApproving || isRejecting}
-                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 disabled:opacity-50">
-                                {isApproving ? (
-                                    <><span className="animate-spin">⏳</span> <span>Memproses...</span></>
-                                ) : (
-                                    <><Icon name="Check" size={20} /> <span>Lulus</span></>
-                                )}
+                            <button
+                                onClick={onApprove}
+                                className="px-6 py-2.5 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition shadow-sm">
+                                ✅ Sahkan
                             </button>
                         </div>
+                    </div>
+                ) : (
+                    <div className="bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                        <span className={`px-4 py-2 rounded-xl font-bold text-sm ${
+                            report.status === 'Disemak' || report.status === 'Reviewed'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-slate-100 text-slate-700'
+                        }`}>
+                            Status: {report.status}
+                        </span>
+                        
+                        <button
+                            onClick={onClose}
+                            className="px-6 py-2.5 bg-slate-600 text-white rounded-xl font-bold hover:bg-slate-700 transition">
+                            Tutup
+                        </button>
                     </div>
                 )}
             </div>
         </div>
     );
 };
-
 const ReportContent = ({ report }) => {
     const logs = report.dailyLogs || [];
     
