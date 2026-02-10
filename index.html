@@ -38,7 +38,6 @@
          ************************************************************/
         
         // PENTING: GANTIKAN URL INI DENGAN URL DEPLOYMENT GAS ANDA
-        // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
         const API_URL = 'https://script.google.com/macros/s/AKfycbwQDoFSx5gDD07lbAM44u8A-2CTRHgXuvHArkPluWUsnbnh3q8i89v_yFNiwjRq_1Ce/exec';
 
         const ICONS = {
@@ -578,7 +577,7 @@
                                         <td className="p-3">{u.position}</td>
                                         <td className="p-3">
                                             <span className={`px-2 py-1 rounded text-xs ${
-                                                u.status === 'Approved' ? 'bg-green-100 text-green-700' : 
+                                                (u.status === 'Approved' || u.status === 'Active') ? 'bg-green-100 text-green-700' : 
                                                 u.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
                                             }`}>
                                                 {u.status}
@@ -592,7 +591,7 @@
                                                     <Button variant="danger" className="text-xs px-2 py-1" onClick={() => onManageUser('rejectUser', u.uid)}>Reject</Button>
                                                 </>
                                             )}
-                                            {u.status === 'Approved' && (
+                                            {(u.status === 'Approved' || u.status === 'Active') && (
                                                 <Button variant="secondary" className="text-xs px-2 py-1" onClick={() => onManageUser('suspendUser', u.uid)}>Suspend</Button>
                                             )}
                                             {u.status === 'Suspended' && (
@@ -1004,7 +1003,7 @@
 
                                 {/* MAIN CONTENT */}
                                 <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 relative">
-                                    {user.status !== 'Approved' ? (
+                                    {!(user.status === 'Approved' || user.status === 'Active') ? (
                                         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow">
                                             <p className="font-bold">Akaun Belum Aktif</p>
                                             <p>Akaun anda berstatus: <strong>{user.status}</strong>. Sila tunggu kelulusan Admin.</p>
