@@ -2169,34 +2169,26 @@ const UserRow = ({ user, onOpenReport }) => {
                     <StatusBadge status={user.status} />
                     
                     {canView && (
-                       {/* ✅ KOD BARU UNTUK BUTANG MATA (GPK) */}
-<button
-    onClick={() => {
-        console.log("Membuka laporan user:", user); // Debug
-
-        // 1. Salin data user supaya selamat
-        let dataLaporan = { ...user };
-
-        // 2. Semak jika 'content' adalah string (teks), tukar jadi Object
-        try {
-            if (typeof dataLaporan.content === 'string') {
-                dataLaporan.content = JSON.parse(dataLaporan.content);
+    <button
+        onClick={() => {
+            let dataLaporan = { ...user };
+            try {
+                if (typeof dataLaporan.content === 'string') {
+                    dataLaporan.content = JSON.parse(dataLaporan.content);
+                }
+            } catch (e) {
+                console.error("Error parsing JSON:", e);
+                dataLaporan.content = [];
             }
-        } catch (e) {
-            console.error("Error parsing JSON:", e);
-            dataLaporan.content = []; // Jika error, letak array kosong
-        }
-
-        // 3. Set laporan aktif & tukar paparan
-        setActiveReport(dataLaporan);
-        setView('view');
-    }}
-    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0"
-    title="Lihat Laporan"
->
-    <Icon name="Eye" size={20} />
-</button>
-                    )}
+            setActiveReport(dataLaporan);
+            setView('view');
+        }}
+        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0"
+        title="Lihat Laporan"
+    >
+        <Icon name="Eye" size={20} />
+    </button>
+)}
                 </div>
             </div>
             
