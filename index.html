@@ -2402,6 +2402,12 @@ const ReportDetailModal = ({ report, onClose, onApprove, onReject, autoOpenNext,
                                                 <td>{new Date(report.submittedAt).toLocaleString('ms-MY')}</td>
                                             </tr>
                                         )}
+                                        {report.remark && (
+                                            <tr>
+                                                <td style={{fontWeight: 'bold'}}>Catatan GPK:</td>
+                                                <td>{report.remark}</td>
+                                            </tr>
+                                        )}
                                     </table>
                                 </div>
 
@@ -2537,6 +2543,12 @@ const ReportContent = ({ report }) => {
                     <div>
                         <div className="text-sm text-slate-600 mb-1">Status</div>
                         <StatusBadge status={report.status} />
+                        <div>
+                            <div className="text-sm text-slate-600 mb-1">Catatan GPK</div>
+                            <div className="font-semibold text-slate-800">
+                                {report.remark || '-'}
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <div className="text-sm text-slate-600 mb-1">Tarikh Hantar</div>
