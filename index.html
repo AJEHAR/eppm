@@ -1608,25 +1608,36 @@ const SemakanLaporan = () => {
         fetchTrackingData(filterYear, weekNumber, true); // true = skip cache
     };
 
-    const handleOpenReport = async (reportId) => {
-        if (!reportId) {
-            notify('Report ID tidak sah', 'error');
+const handleOpenReport = async (reportId) => {
+    if (!reportId) {
+        notify('Report ID tidak sah', 'error');
+        return;
+    }
+
+    try {
+        // Check cache dulu
+        const cached = DetailCache.get(reportId);
+        if (cached) {
+            console.log(`📦 Detail Cache HIT: ${reportId}`);
+            setSelectedReport(cached);
             return;
         }
 
-        try {
-            const res = await callAPI('getReportDetail', { reportId });
-            
-            if (res.success) {
-                setSelectedReport(res.report);
-            } else {
-                notify(res.message || 'Gagal memuat detail laporan', 'error');
-            }
-        } catch (error) {
-            console.error('Error fetching report detail:', error);
-            notify('Ralat: ' + error.message, 'error');
+        console.log(`🌐 Fetching detail: ${reportId}`);
+        const res = await callAPI('getReportDetail', { reportId });
+
+        if (res.success) {
+            // Simpan dalam cache
+            DetailCache.save(reportId, res.report);
+            setSelectedReport(res.report);
+        } else {
+            notify(res.message || 'Gagal memuat detail laporan', 'error');
         }
-    };
+    } catch (error) {
+        console.error('Error fetching report detail:', error);
+        notify('Ralat: ' + error.message, 'error');
+    }
+};
 
     const handleCloseReport = () => {
         setSelectedReport(null);
@@ -1648,9 +1659,10 @@ const SemakanLaporan = () => {
                     'success'
                 );
 
-                // Refresh tracking data
-                const weekNumber = parseInt(filterWeek);
-                fetchTrackingData(filterYear, weekNumber, true);
+                // Refresh tracking data + invalidate detail cache
+const weekNumber = parseInt(filterWeek);
+fetchTrackingData(filterYear, weekNumber, true);
+DetailCache.invalidate(selectedReport.reportId); // ← TAMBAH INI
 
                 // Auto open next if enabled
                 if (autoOpenNext && action === 'approve') {
