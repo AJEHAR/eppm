@@ -1660,6 +1660,31 @@ const res = await callAPI('getWeeklyTrackingSummary', {
         fetchTrackingData(filterYear, weekNumber, true); // true = skip cache
     };
 
+    const handleApproveAll = async () => {
+    const pendingUsers = users.filter(u => u.status === 'Dihantar');
+    
+    if (pendingUsers.length === 0) {
+        notify('Tiada laporan yang dihantar untuk disemak', 'error');
+        return;
+    }
+    
+    if (!window.confirm(`Sahkan semua ${pendingUsers.length} laporan yang dihantar?`)) return;
+    
+    let success = 0;
+    for (let i = 0; i < pendingUsers.length; i++) {
+        notify(`Menyemak ${i + 1}/${pendingUsers.length}...`);
+        const res = await callAPI('reviewReport', {
+            reportId: pendingUsers[i].reportId,
+            action: 'approve',
+            reviewerName: user.fullName
+        });
+        if (res.success) success++;
+    }
+    
+    notify(`✅ ${success}/${pendingUsers.length} laporan berjaya disemak!`);
+    fetchTrackingData(filterYear, parseInt(filterWeek), true);
+};
+
 const handleOpenReport = async (reportId) => {
     if (!reportId) {
         notify('Report ID tidak sah', 'error');
