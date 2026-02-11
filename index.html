@@ -1649,7 +1649,7 @@ const res = await callAPI('getWeeklyTrackingSummary', {
     };
 
     // ✅ HANDLER UNTUK REFRESH (force refresh)
-  const handleRefresh = () => {
+    const handleRefresh = () => {
         if (!filterWeek || filterWeek === '') {
             notify('Sila pilih minggu terlebih dahulu', 'error');
             return;
@@ -1657,32 +1657,7 @@ const res = await callAPI('getWeeklyTrackingSummary', {
         
         const weekNumber = parseInt(filterWeek);
         console.log(`🔄 Force refreshing Week ${weekNumber}, ${filterYear}`);
-        fetchTrackingData(filterYear, weekNumber, true);
-    };
-
-    const handleApproveAll = async () => {
-        const pendingUsers = users.filter(u => u.status === 'Dihantar');
-        
-        if (pendingUsers.length === 0) {
-            notify('Tiada laporan yang dihantar untuk disemak', 'error');
-            return;
-        }
-        
-        if (!window.confirm(`Sahkan semua ${pendingUsers.length} laporan yang dihantar?`)) return;
-        
-        let success = 0;
-        for (let i = 0; i < pendingUsers.length; i++) {
-            notify(`Menyemak ${i + 1}/${pendingUsers.length}...`);
-            const res = await callAPI('reviewReport', {
-                reportId: pendingUsers[i].reportId,
-                action: 'approve',
-                reviewerName: user.fullName
-            });
-            if (res.success) success++;
-        }
-        
-        notify(`✅ ${success}/${pendingUsers.length} laporan berjaya disemak!`);
-        fetchTrackingData(filterYear, parseInt(filterWeek), true);
+        fetchTrackingData(filterYear, weekNumber, true); // true = skip cache
     };
 
 const handleOpenReport = async (reportId) => {
@@ -1846,13 +1821,6 @@ DetailCache.invalidate(selectedReport.reportId); // ← TAMBAH INI
                                 <Icon name="RefreshCw" size={18} className={loadingTracking ? 'animate-spin' : ''}/>
                                 <span className="hidden sm:inline">Refresh</span>
                             </button>
-                            <button
-    onClick={handleApproveAll}
-    disabled={loadingTracking || !filterWeek || stats.dihantar === 0}
-    className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-medium">
-    <Icon name="CheckCheck" size={18} />
-    <span>Semak Semua ({stats.dihantar})</span>
-</button>
                         </div>
                     </div>
                     
