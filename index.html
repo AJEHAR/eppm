@@ -981,12 +981,6 @@ const SidebarItem = ({ id, icon, label, roles }) => {
             )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
-    </button>
-)}
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {reports.map((r) => (
                     <div key={r.reportId} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow border-t-4 border-t-indigo-500">
@@ -1534,19 +1528,7 @@ const showToast = (message, type = 'info', duration = 3000) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SEMAKAN LAPORAN - FIXED VERSION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 
-// FIXES:
-// 1. ❌ BUANG auto-load data pada mount
-// 2. ✅ TAMBAH butang "Cari" untuk manual load
-// 3. ✅ FIX filter minggu - state management betul
-// 4. ✅ OPTIMIZE API calls - kurangkan bacaan
-// 5. ✅ STANDARDIZE UI - ikut format laporan harian PPM
-// 
-// CARA GUNA:
-// 1. Cari line "const SemakanLaporan = () => {" dalam fail index.html anda
-// 2. Replace keseluruhan component SemakanLaporan dengan code di bawah
-// 3. Jangan lupa check ReportDetailModal juga (ada fix berasingan)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 const SemakanLaporan = () => {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
