@@ -933,54 +933,40 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                 );
 
               return (
-      return (
+    <!-- ✅ FIXED VERSION - Replace from line 935 to line 1005 -->
+
+              return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
             <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
-            {user.role === 'User' && (
+            
+            <div className="flex gap-3">
+                {/* ✅ REFRESH BUTTON */}
                 <button 
-                    onClick={() => setView('createFolder')} 
-                    disabled={user.status !== 'Active'}
-                    className={`px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform ${
-                        user.status === 'Active' 
-                            ? 'bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1' 
-                            : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                    }`}
+                    onClick={() => {
+                        console.log('🔄 Manual refresh clicked');
+                        console.log('📊 Current reports:', reports.length);
+                        setReports([]); // Clear first
+                        fetchReports(user);
+                    }}
+                    className="px-4 py-2.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center gap-2"
                 >
-                    <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
+                    <Icon name="RefreshCw" size={18}/>
+                    Refresh
                 </button>
-            )}
+
+                {user.role === 'User' && user.status === 'Active' && (
+                    <button 
+                        onClick={() => setView('createFolder')} 
+                        className="px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1"
+                    >
+                        <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
+                    </button>
+                )}
+            </div>
         </div>
-        <div className="flex justify-between items-center">
-    <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
-    
-    <div className="flex gap-3">
-        {/* ✅ TAMBAH REFRESH BUTTON */}
-        <button 
-            onClick={() => {
-                console.log('🔄 Manual refresh clicked');
-                console.log('📊 Current reports:', reports.length);
-                setReports([]); // Clear first
-                fetchReports(user);
-            }}
-            className="px-4 py-2.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center gap-2"
-        >
-            <Icon name="RefreshCw" size={18}/>
-            Refresh
-        </button>
 
-        {user.role === 'User' && user.status === 'Active' && (
-            <button 
-                onClick={() => setView('createFolder')} 
-                className="px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1"
-            >
-                <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
-            </button>
-        )}
-    </div>
-</div>
-
-        {/* ✅ DEBUG DISPLAY - TAMBAH INI */}
+        {/* ✅ DEBUG DISPLAY */}
         <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
             <p className="text-sm font-bold text-yellow-800">
                 🔍 DEBUG: Reports Count = {reports.length}
