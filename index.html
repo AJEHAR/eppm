@@ -2288,137 +2288,80 @@ const ReportDetailModal = ({ report, onClose, onApprove, onReject, autoOpenNext,
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+
                     {activeTab === 'view' && (
-                        <div className="space-y-4">
-                            {/* ✅ IKUT FORMAT LAPORAN HARIAN - TaskCard Style */}
-                            {report.dailyLogs.map((log, dayIndex) => (
-                                <div key={dayIndex} className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm overflow-hidden">
-                                    {/* Day Header */}
-                                    <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b-2 border-slate-200">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <h3 className="text-lg font-bold text-slate-800">
-                                                    {log.day}
-                                                </h3>
-                                                <p className="text-sm text-slate-600">
-                                                    📅 {new Date(log.date).toLocaleDateString('ms-MY', { 
-                                                        day: 'numeric', 
-                                                        month: 'long', 
-                                                        year: 'numeric' 
-                                                    })}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xs text-slate-500 uppercase tracking-wide">Kehadiran</p>
-                                                <p className={`text-sm font-bold ${
-                                                    log.attendance === 'Hadir' ? 'text-green-600' : 'text-red-600'
-                                                }`}>
-                                                    {log.attendance === 'Hadir' ? '✅ Hadir' : '❌ Tidak Hadir'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
+    <div className="space-y-4">
+        {report.dailyLogs.map((log, dayIndex) => (
+            <div key={dayIndex} className="bg-white border-2 border-slate-300 rounded-lg overflow-hidden">
+                <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b-2 border-slate-300">
+                    <h5 className="font-bold text-slate-800">Laporan harian {log.day}</h5>
+                </div>
+                <div className="bg-slate-800 px-4 py-2 border-b-2 border-slate-300">
+                    <h6 className="font-bold text-white uppercase text-xs tracking-wider flex items-center gap-2">
+                        <Icon name="Calendar" size={14}/> Maklumat Asas
+                    </h6>
+                </div>
+                <table className="w-full text-sm">
+                    <tbody>
+                        <tr className="border-b border-slate-300">
+                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs w-1/4">Nama</td>
+                            <td className="p-3 font-semibold">{report.fullName}</td>
+                        </tr>
+                        <tr className="border-b border-slate-300">
+                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Tarikh</td>
+                            <td className="p-3 font-semibold">{new Date(log.date).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                        </tr>
+                        <tr className="border-b border-slate-300">
+                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Hari</td>
+                            <td className="p-3 font-semibold">{log.day}</td>
+                        </tr>
+                        <tr className="border-b border-slate-300">
+                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Lokasi</td>
+                            <td className="p-3 font-semibold">{log.location || '-'}</td>
+                        </tr>
+                        <tr className="border-b border-slate-300">
+                            <td className="p-3 border-r border-slate-300 bg-slate-50 font-bold uppercase text-xs">Kehadiran</td>
+                            <td className="p-3 font-semibold">{log.attendance || '-'}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table className="w-full text-sm text-left border-t-2 border-slate-300 mt-4">
+                    <thead>
+                        <tr className="bg-slate-700 text-white">
+                            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '15%'}}>Masa</th>
+                            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '45%'}}>Tugasan</th>
+                            <th className="p-3 border border-slate-300 font-bold uppercase" style={{width: '40%'}}>Catatan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {log.tasks && log.tasks.length > 0 ? (
+                            log.tasks.map((task, taskIndex) => (
+                                <tr key={taskIndex} className="bg-white hover:bg-slate-50">
+                                    <td className="p-3 border border-slate-300 font-bold text-indigo-700">{task.m || '-'}</td>
+                                    <td className="p-3 border border-slate-300 font-medium text-slate-800">{task.t || '-'}</td>
+                                    <td className="p-3 border border-slate-300 text-slate-600 italic">{task.c || '-'}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="3" className="p-6 text-center text-slate-400 text-sm border border-slate-300">Tiada tugasan direkodkan</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        ))}
 
-                                    {/* Log Details */}
-                                    <div className="p-6 space-y-4">
-                                        {/* Location & Time */}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 border-b border-slate-100">
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                                    📍 Lokasi
-                                                </p>
-                                                <p className="text-sm font-medium text-slate-700">{log.location || '-'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                                    🕐 Masa Mula
-                                                </p>
-                                                <p className="text-sm font-medium text-slate-700">{log.startTime || '-'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                                    🕑 Masa Tamat
-                                                </p>
-                                                <p className="text-sm font-medium text-slate-700">{log.endTime || '-'}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* ✅ TASKS - IKUT FORMAT TaskCard COMPONENT */}
-                                        <div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                                                📝 Tugasan Harian
-                                            </p>
-                                            <div className="space-y-3">
-                                                {log.tasks && log.tasks.length > 0 ? (
-                                                    log.tasks.map((task, taskIndex) => (
-                                                        <div 
-                                                            key={taskIndex}
-                                                            className="bg-white border-2 border-slate-200 rounded-2xl p-4 hover:border-indigo-300 transition-all shadow-sm hover:shadow-md">
-                                                            {/* Task Number Badge */}
-                                                            <div className="flex items-start justify-between mb-3">
-                                                                <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-black">
-                                                                    #{taskIndex + 1}
-                                                                </span>
-                                                            </div>
-
-                                                            {/* Task Details */}
-                                                            <div className="space-y-3">
-                                                                {/* Waktu */}
-                                                                <div>
-                                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                                                        Waktu
-                                                                    </label>
-                                                                    <p className="text-sm font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                                                        {task.m || '-'}
-                                                                    </p>
-                                                                </div>
-
-                                                                {/* Tugasan */}
-                                                                <div>
-                                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                                                        Tugasan
-                                                                    </label>
-                                                                    <p className="text-sm font-medium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200 whitespace-pre-wrap">
-                                                                        {task.t || '-'}
-                                                                    </p>
-                                                                </div>
-
-                                                                {/* Catatan */}
-                                                                {task.c && (
-                                                                    <div>
-                                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                                                            Catatan
-                                                                        </label>
-                                                                        <p className="text-sm italic text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 whitespace-pre-wrap">
-                                                                            {task.c}
-                                                                        </p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-8 text-center">
-                                                        <p className="text-slate-400 text-sm">Tiada tugasan direkodkan</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-
-                            {report.dailyLogs.length === 0 && (
-                                <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center">
-                                    <div className="text-6xl mb-4">📭</div>
-                                    <h3 className="text-xl font-semibold text-slate-700 mb-2">Tiada Log Harian</h3>
-                                    <p className="text-slate-600">Laporan ini belum mempunyai sebarang log harian.</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === 'print' && (
+        {report.dailyLogs.length === 0 && (
+            <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center">
+                <div className="text-6xl mb-4">📭</div>
+                <p className="text-slate-600">Tiada log harian.</p>
+            </div>
+        )}
+    </div>
+)}
+                    
+activeTab === 'print' && (
                         <div className="bg-white rounded-2xl p-8 shadow-sm">
                             <div ref={printRef}>
                                 {/* Print Header */}
