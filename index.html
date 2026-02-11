@@ -2358,10 +2358,8 @@ const ReportDetailModal = ({ report, onClose, onApprove, onReject, autoOpenNext,
                 <p className="text-slate-600">Tiada log harian.</p>
             </div>
         )}
-    </div>
-)}
                     
-                    {activeTab === 'print' && (
+{activeTab === 'print' && (
                         <div className="bg-white rounded-2xl p-8 shadow-sm">
                             <div ref={printRef}>
                                 {/* Print Header */}
