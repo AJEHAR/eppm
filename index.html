@@ -1563,11 +1563,11 @@ const SemakanLaporan = () => {
 
             console.log(`🌐 Fetching: Week ${week}, ${year}`);
             
-            const res = await callAPI('getWeeklyTrackingSummary', {
-                gpkReportingValue: user.reportingGpk || user.position,
-                year: year,
-                weekNum: week
-            });
+const res = await callAPI('getWeeklyTrackingSummary', {
+    gpkReportingValue: user.fullName,
+    year: year,
+    weekNum: week
+});
 
             if (res.success) {
                 setTrackingData(res);
