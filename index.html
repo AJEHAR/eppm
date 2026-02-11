@@ -421,9 +421,30 @@ let currentReportData = null;
             };
 
             const fetchReports = async (currUser) => {
-                const res = await callAPI('getReports', { userId: currUser.uid, role: currUser.role });
-                if (res.success) setReports(res.reports);
-            };
+    console.log('🔍 Fetching reports for:', currUser.uid);
+    
+    const res = await callAPI('getReports', { 
+        userId: currUser.uid, 
+        role: currUser.role,
+        timestamp: Date.now() // ← Force bypass cache
+    });
+    
+    console.log('📊 API returned:', res);
+    
+    if (res.success) {
+        console.log('✅ Setting reports:', res.reports.length, 'items');
+        console.log('📄 Report data:', res.reports);
+        
+        setReports(res.reports); // This should trigger re-render
+        
+        // Force update check
+        setTimeout(() => {
+            console.log('⏰ Reports state after 100ms:', reports.length);
+        }, 100);
+    } else {
+        console.error('❌ Fetch failed:', res.message);
+    }
+};
 
             // --- AUTH LOGIC ---
             const handleLogin = async (e) => {
@@ -599,15 +620,28 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                 const [editingLog, setEditingLog] = useState(null); // For edit mode
 
                 const handleCreateFolder = async (e) => {
-                    e.preventDefault();
-                    const d = Object.fromEntries(new FormData(e.target));
-                    const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
-                    if (res.success) {
-                        notify("Folder mingguan berjaya dicipta!");
-                        fetchReports(user);
-                        setView('list');
-                    } else notify(res.message, "error");
-                };
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    
+    console.log('🔵 Creating folder:', { ...d, userId: user.uid });
+    
+    const res = await callAPI('saveWeeklyFolder', { ...d, userId: user.uid });
+    
+    console.log('📦 Create response:', res);
+    
+    if (res.success) {
+        notify("Folder mingguan berjaya dicipta!");
+        
+        console.log('🔄 Fetching reports...');
+        await fetchReports(user); // ← TAMBAH await!
+        
+        console.log('✅ Reports after fetch:', reports.length);
+        
+        setView('list');
+    } else {
+        notify(res.message, "error");
+    }
+};
 
 
                 const handleAddLog = async (e) => {
@@ -899,19 +933,72 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                 );
 
               return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
-             {user.role === 'User' && (
-    <button 
-        onClick={() => setView('createFolder')} 
-        disabled={user.status !== 'Active'}
-        className={`px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform ${
-            user.status === 'Active' 
-                ? 'bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1' 
-                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-        }`}
-    >
+      return (
+    <div className="space-y-6">
+        <div className="flex justify-between items-center">
+            <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
+            {user.role === 'User' && (
+                <button 
+                    onClick={() => setView('createFolder')} 
+                    disabled={user.status !== 'Active'}
+                    className={`px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform ${
+                        user.status === 'Active' 
+                            ? 'bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1' 
+                            : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    }`}
+                >
+                    <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
+                </button>
+            )}
+        </div>
+        <div className="flex justify-between items-center">
+    <h3 className="text-xl font-black text-slate-800">Janaan Laporan Mingguan</h3>
+    
+    <div className="flex gap-3">
+        {/* ✅ TAMBAH REFRESH BUTTON */}
+        <button 
+            onClick={() => {
+                console.log('🔄 Manual refresh clicked');
+                console.log('📊 Current reports:', reports.length);
+                setReports([]); // Clear first
+                fetchReports(user);
+            }}
+            className="px-4 py-2.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center gap-2"
+        >
+            <Icon name="RefreshCw" size={18}/>
+            Refresh
+        </button>
+
+        {user.role === 'User' && user.status === 'Active' && (
+            <button 
+                onClick={() => setView('createFolder')} 
+                className="px-5 py-2.5 rounded-xl font-bold flex items-center shadow-lg transition-transform bg-indigo-600 text-white shadow-indigo-100 hover:-translate-y-1"
+            >
+                <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
+            </button>
+        )}
+    </div>
+</div>
+
+        {/* ✅ DEBUG DISPLAY - TAMBAH INI */}
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
+            <p className="text-sm font-bold text-yellow-800">
+                🔍 DEBUG: Reports Count = {reports.length}
+            </p>
+            <p className="text-xs text-yellow-700 mt-1">
+                User: {user.uid} | Role: {user.role}
+            </p>
+            {reports.length > 0 && (
+                <details className="mt-2">
+                    <summary className="text-xs font-bold cursor-pointer">Show Reports Data</summary>
+                    <pre className="text-xs mt-2 bg-white p-2 rounded overflow-auto max-h-40">
+                        {JSON.stringify(reports, null, 2)}
+                    </pre>
+                </details>
+            )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Icon name="Plus" size={18} className="mr-2"/> Cipta Folder
     </button>
 )}
