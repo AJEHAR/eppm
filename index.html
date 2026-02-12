@@ -1024,8 +1024,9 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                                 )}
                             </div>
                             
-                            {/* ✅ UPDATE BUTTON GRID */}
-                            <div className={`grid ${r.status === 'Draft' ? 'grid-cols-2' : r.status === 'Submitted' ? 'grid-cols-2' : r.pdfUrl ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mt-6`}>
+                          {/* ✅ BUTTON GRID - CORRECTED VERSION */}
+<div className={`grid ${r.status === 'Draft' ? 'grid-cols-2' : r.status === 'Submitted' ? 'grid-cols-2' : r.pdfUrl ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mt-6`}>
+    {/* Lihat Log Button - Always show */}
     <button 
         onClick={() => {setActiveReport(r); setView('view');}} 
         className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
@@ -1033,7 +1034,7 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         Lihat Log
     </button>
     
-    {/* ✅ NEW: PDF Download Button */}
+    {/* ✅ PDF Download Button - Show if PDF exists */}
     {r.pdfUrl && (
         <a 
             href={r.pdfUrl}
@@ -1046,7 +1047,7 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         </a>
     )}
     
-    {/* Existing buttons - Hantar */}
+    {/* Hantar Button - Only for Draft */}
     {r.status === 'Draft' && user.role === 'User' && (
         <button 
             onClick={() => confirmSubmit(r.reportId)} 
@@ -1061,7 +1062,7 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         </button>
     )}
     
-    {/* Existing buttons - Tarik Semula */}
+    {/* Tarik Semula Button - Only for Submitted */}
     {r.status === 'Submitted' && user.role === 'User' && (
         <button 
             onClick={() => handleUnreport(r.reportId)}
@@ -1072,27 +1073,7 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         </button>
     )}
 </div>
-                                <button 
-                                    onClick={() => {setActiveReport(r); setView('view');}} 
-                                    className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
-                                >
-                                    Lihat Log
-                                </button>
-                                
-                                {/* Hantar (Draft only) */}
-                                {r.status === 'Draft' && user.role === 'User' && (
-    <button 
-        onClick={() => confirmSubmit(r.reportId)} 
-        disabled={user.status !== 'Active'}
-        className={`py-2.5 rounded-xl font-bold text-xs transition-colors ${
-            user.status === 'Active'
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-        }`}
-    >
-        Hantar
-    </button>
-)}
+{/* ✅ END BUTTON GRID */}
                                 
                                 {/* ✅ Tarik Semula (Submitted only) */}
                                 {r.status === 'Submitted' && user.role === 'User' && (
