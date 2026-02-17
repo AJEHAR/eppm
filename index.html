@@ -2258,7 +2258,7 @@ const UserRow = ({ user, onOpenReport }) => {
         
         {/* ✅ PDF Button */}
         {user.pdfUrl && (
-            
+            <a
                 href={user.pdfUrl}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -2354,7 +2354,7 @@ const ReportDetailModal = ({ report, onClose, onApprove, onReject, autoOpenNext,
                     {/* ✅ NEW: PDF Download + Close Button */}
                     <div className="flex items-center gap-2">
                         {report.pdfUrl && (
-                            
+                            <a
                                 href={report.pdfUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
