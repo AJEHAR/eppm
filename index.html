@@ -752,16 +752,27 @@ const SidebarItem = ({ id, icon, label, roles }) => {
         }
     };
 
-    const confirmSubmit = async (id) => {
-        if (window.confirm("Adakah anda pasti? Laporan akan dihantar untuk semakan GPK.")) {
-            const res = await callAPI('submitReport', { reportId: id });
-            if (res.success) {
-                notify("Laporan berjaya dihantar!");
-                fetchReports(user);
+   const confirmSubmit = async (id) => {
+    if (window.confirm("Adakah anda pasti? Laporan akan dihantar untuk semakan GPK.")) {
+        notify("⏳ Menghantar dan menjana PDF...");
+        
+        const res = await callAPI('submitReport', { reportId: id });
+        if (res.success) {
+            notify("✅ Laporan berjaya dihantar! PDF sedang dijana.");
+            fetchReports(user);
+            
+            if (res.pdfUrl) {
+                setTimeout(() => {
+                    if (window.confirm("PDF berjaya dijana! Nak buka sekarang?")) {
+                        window.open(res.pdfUrl, '_blank');
+                    }
+                }, 1000);
             }
+        } else {
+            notify(res.message || "Gagal hantar laporan", "error");
         }
-    };
-
+    }
+};
                 if (view === 'createFolder') return (
         <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100 mt-10">
             <h3 className="text-xl font-black mb-6 flex items-center">
@@ -1854,7 +1865,7 @@ DetailCache.invalidate(selectedReport.reportId); // ← TAMBAH INI
                                 <span>Cari</span>
                             </button>
                             
-                            {/* ✅ BUTANG REFRESH */}
+                          {/* ✅ BUTANG REFRESH */}
                             <button 
                                 onClick={handleRefresh}
                                 disabled={loadingTracking || !filterWeek}
@@ -1869,6 +1880,25 @@ DetailCache.invalidate(selectedReport.reportId); // ← TAMBAH INI
                                 className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-medium">
                                 <Icon name="CheckCheck" size={18} />
                                 <span>Semak Semua ({stats.dihantar})</span>
+                            </button>
+
+                            {/* ✅ NEW: Buka Semua PDF */}
+                            <button
+                                onClick={() => {
+                                    const pdfUsers = users.filter(u => u.status === 'Dihantar' && u.pdfUrl);
+                                    if (pdfUsers.length === 0) {
+                                        notify('Tiada PDF untuk dibuka', 'error');
+                                        return;
+                                    }
+                                    pdfUsers.forEach(u => {
+                                        window.open(u.pdfUrl, '_blank');
+                                    });
+                                    notify(`Membuka ${pdfUsers.length} PDF...`);
+                                }}
+                                disabled={loadingTracking || !filterWeek || stats.dihantar === 0}
+                                className="flex items-center gap-2 px-5 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-medium">
+                                <Icon name="FileStack" size={18} />
+                                <span>Buka Semua PDF ({stats.dihantar})</span>
                             </button>
                         </div>
                     </div>
@@ -2217,13 +2247,28 @@ const UserRow = ({ user, onOpenReport }) => {
                 <div className="flex items-center gap-3">
                     <StatusBadge status={user.status} />
                     
-                    {canView && (
-                        <button
-                            onClick={() => onOpenReport(user.reportId)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0">
-                            <Icon name="Eye" size={20} />
-                        </button>
-                    )}
+                   {canView && (
+    <div className="flex items-center gap-2">
+        <button
+            onClick={() => onOpenReport(user.reportId)}
+            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0"
+            title="Quick View">
+            <Icon name="Eye" size={20} />
+        </button>
+        
+        {/* ✅ PDF Button */}
+        {user.pdfUrl && (
+            
+                href={user.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0"
+                title="Open PDF">
+                <Icon name="FileText" size={20} />
+            </a>
+        )}
+    </div>
+)}
                 </div>
             </div>
             
@@ -2305,12 +2350,25 @@ const ReportDetailModal = ({ report, onClose, onApprove, onReject, autoOpenNext,
                             </p>
                         </div>
                     </div>
-                    
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-                        <Icon name="X" size={24} />
-                    </button>
+
+                    {/* ✅ NEW: PDF Download + Close Button */}
+                    <div className="flex items-center gap-2">
+                        {report.pdfUrl && (
+                            
+                                href={report.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-bold">
+                                <Icon name="Download" size={16} />
+                                <span className="hidden sm:inline">Download PDF</span>
+                            </a>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                            <Icon name="X" size={24} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Tabs */}
@@ -2324,7 +2382,7 @@ const ReportDetailModal = ({ report, onClose, onApprove, onReject, autoOpenNext,
                         }`}>
                         👁️ Lihat Laporan
                     </button>
-</div>
+                </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
