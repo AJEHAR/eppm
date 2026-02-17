@@ -1011,41 +1011,54 @@ const SidebarItem = ({ id, icon, label, roles }) => {
                                 )}
                             </div>
                             
-                            {/* ✅ UPDATE BUTTON GRID */}
-                            <div className={`grid ${r.status === 'Draft' ? 'grid-cols-2' : r.status === 'Submitted' ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mt-6`}>
-                                <button 
-                                    onClick={() => {setActiveReport(r); setView('view');}} 
-                                    className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
-                                >
-                                    Lihat Log
-                                </button>
-                                
-                                {/* Hantar (Draft only) */}
-                                {r.status === 'Draft' && user.role === 'User' && (
+                         {/* ✅ UPDATE BUTTON GRID */}
+<div className={`grid ${r.status === 'Draft' ? 'grid-cols-2' : r.status === 'Submitted' ? 'grid-cols-2' : r.pdfUrl ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mt-6`}>
     <button 
-        onClick={() => confirmSubmit(r.reportId)} 
-        disabled={user.status !== 'Active'}
-        className={`py-2.5 rounded-xl font-bold text-xs transition-colors ${
-            user.status === 'Active'
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-        }`}
+        onClick={() => {setActiveReport(r); setView('view');}} 
+        className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors"
     >
-        Hantar
+        Lihat Log
     </button>
-)}
-                                
-                                {/* ✅ Tarik Semula (Submitted only) */}
-                                {r.status === 'Submitted' && user.role === 'User' && (
-                                    <button 
-                                        onClick={() => handleUnreport(r.reportId)}
-                                        className="py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
-                                    >
-                                        <Icon name="RotateCcw" size={14}/>
-                                        Tarik Semula
-                                    </button>
-                                )}
-                            </div>
+
+    {/* ✅ PDF Button */}
+    {r.pdfUrl && (
+        <a 
+            href={r.pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="py-2.5 bg-green-50 text-green-700 rounded-xl font-bold text-xs hover:bg-green-100 transition-colors text-center flex items-center justify-center gap-1"
+        >
+            <Icon name="FileText" size={14}/>
+            PDF
+        </a>
+    )}
+
+    {/* Hantar (Draft only) */}
+    {r.status === 'Draft' && user.role === 'User' && (
+        <button 
+            onClick={() => confirmSubmit(r.reportId)} 
+            disabled={user.status !== 'Active'}
+            className={`py-2.5 rounded-xl font-bold text-xs transition-colors ${
+                user.status === 'Active'
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+            }`}
+        >
+            Hantar
+        </button>
+    )}
+
+    {/* Tarik Semula (Submitted only) */}
+    {r.status === 'Submitted' && user.role === 'User' && (
+        <button 
+            onClick={() => handleUnreport(r.reportId)}
+            className="py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
+        >
+            <Icon name="RotateCcw" size={14}/>
+            Tarik Semula
+        </button>
+    )}
+</div>
                         </div>
                     </div>
                 ))}
